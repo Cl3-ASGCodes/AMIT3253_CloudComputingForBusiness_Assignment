@@ -27,7 +27,8 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 //   $user = 'admin';
 //   $pass = 'your-rds-master-password';
 // ============================================================================
-$host   = getenv('DB_HOST') ?: 'localhost:3306';
+$host   = getenv('DB_HOST') ?: 'localhost';
+$port   = getenv('DB_PORT') ?: '3306';
 $user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') ?: '';
 $dbname = getenv('DB_NAME') ?: 'eventhalls_db';
@@ -36,28 +37,40 @@ $_db = null;
 if ($_db == null) startSQL();
 
 function startSQL() {
-    global $host, $user, $pass, $dbname, $_db;
-
+    global $_db, $host, $dbname, $port, $user, $pass;
     // Keep MySQL's NOW()/CURRENT_TIMESTAMP in step with the PHP timezone above -
     // otherwise created_at/returned_at etc. would still be recorded 8 hours off.
     $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+        PDO::ATTR_EMULATE_PREPARES   => false,
         PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '+08:00'" 
     ];
+
     try {
-        $_db = new PDO("mysql:dbname=".$dbname, $user, $pass, $options); 
-        $_db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $_db = new PDO("mysql:host=$host;dbname=$dbname;port=$port", $user, $pass, $options);
     } catch(PDOException $e) {
         echo ("Database Server Failed\nConnection failed: " . $e->getMessage());    
     }
 }
 
-function sqlQuery($query, $output = null) {
+function sqlQuery($query,$data = [], $output = null, $single = false) {
     global $_db;
     try {
-        $result = $_db  ->query($query)
-                        ->fetchAll($output);
-        return $result;
+        if (count($data)) {
+            $result = $_db->prepare($query);
+            $result -> execute($data);
+        }else {
+            $result = $_db -> query($query);
+        }
+
+        if ($single) {
+            return $result -> fetch($output);
+        } else {
+            return $result -> fetchall($output);
+        }
+
+        return null;
     } catch (PDOException $e) {
         Print($e);
     }

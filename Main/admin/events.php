@@ -7,17 +7,17 @@ require_admin();
 $flashError = $_SESSION['flash_error'] ?? null;
 unset($_SESSION['flash_error']);
 
-$events = $conn->query('SELECT *, (total_tickets - tickets_sold) AS remaining FROM events ORDER BY event_date');
+$events = null;//$conn->query('SELECT *, (total_tickets - tickets_sold) AS remaining FROM events ORDER BY event_date');
 
 $pageTitle = 'Manage Events';
-require 'partials/header.php';
+require './partials/header.php';
 ?>
 <h1>Events</h1>
 <p><a class="btn btn-small" href="event_create.php">+ Add Event</a></p>
 <?php if ($flashError): ?><p class="alert alert-error"><?= htmlspecialchars($flashError) ?></p><?php endif; ?>
 <table>
 <tr><th>Photo</th><th>Name</th><th>Date</th><th>Venue</th><th>Price (RM)</th><th>Type</th><th>Sold / Total</th><th>Actions</th></tr>
-<?php while ($e = $events->fetch_assoc()): ?>
+<!--<?php //while ($e = $events->fetch_assoc()): ?>
 <tr>
 <td><img class="table-thumb" src="<?= htmlspecialchars(entity_image_url($e)) ?>" alt="<?= htmlspecialchars($e['event_name']) ?>" loading="lazy"></td>
 <td><?= htmlspecialchars($e['event_name']) ?></td>
@@ -34,6 +34,6 @@ require 'partials/header.php';
 </form>
 </td>
 </tr>
-<?php endwhile; ?>
+<?php //endwhile; ?>-->
 </table>
 <?php require 'partials/footer.php'; ?>

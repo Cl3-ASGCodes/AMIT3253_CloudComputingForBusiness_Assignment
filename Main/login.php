@@ -4,24 +4,41 @@ require 'auth.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['login']);
+    $login = trim($_POST['login']);
     $password = $_POST['password'];
 
-    // $stmt = $conn->prepare('SELECT id, name, password_hash, is_admin FROM users WHERE email = ?');
-    // $stmt->bind_param('s', $email);
-    // $stmt->execute();
-    // $user = $stmt->get_result()->fetch_assoc();
-    // $stmt->close();
-    $user = sqlQuery('SELECT id, username, password_hash FROM login WHERE username = ? AND password_hash = ?',PDO::FETCH_ASSOC);
+    $login_query =  "
+                        SELECT 
+                            u.id,
+                            u.name,
+                            l.password_hash,
+                            l.user_type
+                        FROM 
+                            login l
+                        LEFT JOIN 
+                            users u
+                        ON 
+                            l.id = u.login_id
+                        WHERE 
+                            (l.username = '$login' OR u.email = '$login');
+                    ";
 
-    if ($user && password_verify($password, $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_name'] = $user['name'];
-        $_SESSION['is_admin'] = (bool)$user['is_admin'];
-        header('Location: ' . ($user['is_admin'] ? 'admin/events.php' : 'index.php'));
+    $user = sqlQuery($login_query,[],null,true);
+
+    //var_dump($user);
+
+    if ($user && password_verify($password, $user->password_hash)) {
+        $_SESSION['user_id'] = $user->id;
+        $_SESSION['user_name'] = $user->name;
+        $_SESSION['is_admin'] = !(bool)strcmp($user->user_type,"ADMIN");
+        header('Location: ' . $_SESSION['is_admin'] ? 'admin/events.php' : 'index.php');
         exit;
+    } else if (!$user){
+        $error = 'Invalid Credential.';
+    } else if ($user && !password_verify($password, $user->password_hash)){
+        $error = 'Invalid Password.';
     } else {
-        $error = 'Invalid email or password.';
+        $error = 'Login Error.';
     }
 }
 

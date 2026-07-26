@@ -10,7 +10,7 @@
 <a href="index.php">Home</a>
 <a href="events.php">Events</a>
 <a href="schedule.php">Schedule</a>
-<a href="testimonials.php">Testimonials</a>
+<!--a href="testimonials.php">Testimonials</a-->
 </div>
 <div class="footer-links">
 <h4>Company</h4>

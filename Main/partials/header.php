@@ -31,7 +31,7 @@ function nav_active($page, $current) {
 <a href="events.php" class="<?= trim(nav_active('events.php', $currentPage)) ?>">Events</a>
 <a href="venue.php" class="<?= trim(nav_active('venue.php', $currentPage)) ?>">Available Venue</a>
 <a href="schedule.php" class="<?= trim(nav_active('schedule.php', $currentPage)) ?>">Schedule</a>
-<a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a>
+<!--a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a-->
 <a href="about.php" class="<?= trim(nav_active('about.php', $currentPage)) ?>">About</a>
 <a href="contact.php" class="<?= trim(nav_active('contact.php', $currentPage)) ?>">Contact</a>
 <?php if ($loggedIn): ?>

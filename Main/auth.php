@@ -15,7 +15,7 @@ function current_user_is_admin() {
 
 function require_login() {
     if (!current_user_id()) {
-        header('Location: login.php');
+        header('Location: /login.php');
         exit;
     }
 }
