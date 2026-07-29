@@ -143,23 +143,72 @@ or QR ticketing), it's a straightforward port — swap the entity/field names an
 the same query/render pattern. None of this is framework magic; it's the same plain
 PHP + mysqli approach throughout.
 
-## Photo uploads: local uploads now, S3 as an exercise
+## Photo uploads: local disk by default, S3 already wired up (just needs your bucket)
 
 Every folder's main entity (`facilities`, `rooms`/`equipment`/`books`, `events`,
-`routes`, `vendors`) has an `image_url` column, storing a root-relative path like
-`/uploads/xxx.jpg`. The relevant admin create/edit form has a real `<input
-type="file">`, handled by an image-upload helper in `helpers.php`: it validates the
-upload is actually an image (via `getimagesize()`, not just the extension), caps it at
-5MB, and saves it into the `uploads/` folder under a server-generated filename. The old
-file is cleaned up when a photo is replaced or the record is deleted. Until something has
-a photo, it falls back to a "No photo yet" placeholder so the layout never breaks.
+`routes`, `vendors`) has an `image_url` column. The relevant admin create/edit form has
+a real `<input type="file">`, handled by an image-upload helper in `helpers.php`: it
+validates the upload is actually an image (via `getimagesize()`, not just the
+extension) and caps it at 5MB. Where it's *stored* depends on `AWS_S3_BUCKET` in
+`config.php`:
 
-**Deliberately not done here**: wiring this up to Amazon S3. That's left as the next
-exercise — swap `move_uploaded_file()` for an S3 `PutObject` call (via the AWS SDK for
-PHP or a signed HTTP request), store the resulting object URL in the same `image_url`
-column, and work out the bucket policy / CloudFront setup needed to make the object
-publicly viewable. The rest of the app (the `<img>` rendering, the placeholder fallback)
-doesn't need to change either way — it just displays whatever URL is in `image_url`.
+- **Unset (the default)** — saved into the local `uploads/` folder under a
+  server-generated filename, `image_url` stores a root-relative path like
+  `/uploads/xxx.jpg`. Nothing to configure; this is what you get out of the box.
+- **Set** — uploaded to that S3 bucket instead (Signature Version 4 signed requests,
+  hand-written with PHP's built-in stream wrapper — no AWS SDK, no Composer), and
+  `image_url` stores the full `https://` object URL instead. `<img>` rendering and the
+  "No photo yet" placeholder work identically either way; only where the bytes
+  physically live changes.
+
+**This doesn't move anything already stored.** Each app's seed data (in `schema.sql`)
+already has demo photos saved as local `/uploads/...` paths, and any photo uploaded
+before `AWS_S3_BUCKET` was set is the same — switching S3 on only changes where the
+*next* upload/replace goes, it doesn't rewrite existing rows to point at S3. Migrating
+existing local images over isn't built here; that's left as an exercise.
+
+**Credentials — two ways, tried in this order:**
+1. **An IAM role attached to the EC2 instance/launch template** (`s3:PutObject` +
+   `s3:DeleteObject` on the bucket) — credentials are fetched automatically at request
+   time from the instance's own metadata service, nothing hardcoded anywhere. This is
+   the normal AWS way to do it.
+2. **Explicit temporary credentials**, for AWS Academy Learner Labs where you can't
+   attach or even inspect IAM roles yourself: copy the Access Key ID / Secret Access
+   Key / Session Token from the lab's "AWS Details" panel and set them as
+   `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`. Each app loads
+   these from a `.env` file in its own folder (copy `.env.example` to `.env`, fill in
+   the values — `config.php` reads it automatically, see the loader at the top of the
+   file), or you can set them as Apache environment variables instead if you'd rather
+   not use a file. Never hardcode them directly in `config.php` — **this repo is
+   public**, and a committed key gets scraped within minutes; `.env` itself is
+   git-ignored so it's never committed either. These are genuinely temporary and
+   **expire and rotate periodically** — if uploads that were working suddenly start
+   failing, that's almost always why; grab fresh values and update `.env` (no restart
+   needed) or the environment variable.
+
+**Why this matters for ASG specifically**: once there's more than one EC2 instance
+behind the ALB, a photo saved to local disk only exists on whichever instance happened
+to handle that upload — any other instance (or a newly launched ASG instance) shows a
+broken image for it. That's not a hypothetical; it's guaranteed the moment the ASG has
+≥2 instances, since uploading a photo through the admin panel is a normal part of using
+these apps. S3 fixes this by giving every instance the same shared storage to read from.
+
+**What you still have to do yourself** (this is the "extra marks" part): create the S3
+bucket and a bucket policy allowing public `s3:GetObject` (or put CloudFront in front of
+it instead), get credentials working one of the two ways above, and set
+`AWS_S3_BUCKET`/`AWS_S3_REGION`. None of that can be done from inside this codebase —
+it's real AWS console/IAM work.
+
+**A note on how confident to be in this:** the SigV4 signing logic is verified
+byte-for-byte against AWS's own published test vectors, and the "not configured" (local
+disk) path has been tested live through every app's actual admin upload/display/delete
+flow. With fake credentials, a signed request was sent all the way to a real S3 endpoint
+and came back with a proper `403` — confirming the request-building/signing pipeline
+genuinely reaches AWS and gets a structured response, not a crash or hang. What hasn't
+been tested is a full successful round-trip against a real bucket with real, valid
+credentials — there isn't one available to test that specific case here. Treat the
+"can it talk to S3 correctly" part as verified, and the "does it work with your actual
+bucket and role" part as unverified until you've tried it yourself.
 
 Note: `uploads/` needs to be writable by the web server user (e.g. `apache` on EC2) —
 `chmod 775 uploads` (or adjust ownership) after copying the app to `/var/www/html/`.
@@ -214,6 +263,38 @@ and 3 below, not follow from them.
 4. Restrict the RDS security group to only accept traffic from the web/app tier's
    security group, on port 3306.
 
+## Sessions across multiple instances (ALB + ASG)
+
+The "Scalability" and "Load Balanced" deliverables require an Auto Scaling Group behind
+an Elastic Load Balancer — once there's more than one EC2 instance running the app,
+**PHP's default session storage breaks**. By default a session is written to a file on
+the local disk of whichever instance handled that request; the ALB has no reason to send
+a user's *next* request to that same instance, so the next instance sees no session at
+all — the user looks logged out, "My Bookings" appears empty, flash messages vanish,
+mid-way through using the site, for no visible reason. This isn't a corner case — it's
+guaranteed to happen under the load test in the "High Performing" deliverable, once
+traffic is actually spread across instances.
+
+**This is already handled** in every folder here: sessions are stored in the database
+instead of on local disk (a `sessions` table in `schema.sql`, a `DbSessionHandler` class
+wired up via `session_set_save_handler()` at the top of `auth.php`). Every instance
+reads/writes the same table via the same RDS connection every other page already uses,
+so it doesn't matter which instance an ALB routes a given request to — you don't need to
+turn on ALB "stickiness" for login state to keep working. (ALB sticky sessions on their
+own aren't a real fix here anyway — they just pin a user to one instance, which breaks
+again the moment that specific instance is terminated by an ASG scale-in.) Nothing about
+this needs to change when moving from a single EC2 instance to an ASG — it works the
+same way with one instance or ten.
+
+## ALB health checks
+
+Each folder has a **`healthz.php`** — point your target group's health check path at it.
+It just requires `config.php` and returns `200 OK` if that succeeds. This matters because
+`config.php` explicitly sends a `500` status if the database connection fails, instead of
+the default `200`; without that, a target whose RDS connection is down would still look
+healthy to the ALB and keep receiving real traffic instead of being pulled out of
+rotation.
+
 ## Extending for extra marks
 
 These apps already cover CRUD, accounts, a real admin panel (including user management),
@@ -227,6 +308,8 @@ implemented yet in any folder:
   support questions.
 - Cap how much a single account can book per day (e.g. max hours, or max seats/tickets),
   so one account can't hog every slot for a popular resource.
-- Wire photo uploads to Amazon S3 (see above).
+- Provision the actual S3 bucket + IAM role for photo uploads and confirm the S3 path
+  works end-to-end against a real bucket (see above — the code side is done, the AWS
+  side isn't).
 - A REST/JSON API layer for load testing tools (Apache Bench, JMeter, Locust) to hit
   directly.

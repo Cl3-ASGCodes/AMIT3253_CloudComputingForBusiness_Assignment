@@ -96,7 +96,8 @@ Regular users register their own accounts via the Register page.
 | Path | Purpose |
 |---|---|
 | `schema.sql` | Creates the database, all tables, and seed data |
-| `config.php` | Database connection — reads `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` |
+| `config.php` | Database connection — reads `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME`, plus S3 photo storage config |
+| `healthz.php` | ALB health check target — `200` if the DB connection works, `500` otherwise |
 | `auth.php` | Session helpers: `current_user_id()`, `require_login()`, `require_admin()`, etc. |
 | `helpers.php` | Image upload/delete helpers, faculty list, entity image URL resolver |
 | `register.php` / `login.php` / `logout.php` | Account creation and session login (passwords hashed, never plaintext) |
@@ -109,14 +110,43 @@ Regular users register their own accounts via the Register page.
 | `uploads/` | Uploaded route photos |
 | `style.css` | Shared styling (navbar, cards, forms, tables, dark/light mode) |
 
-## Route photos: local uploads now, S3 as an exercise
+## Route photos: local disk by default, S3 already wired up (just needs your bucket)
 
-`routes.image_url` stores a path like `/uploads/route_xxx.jpg`. Uploads are
-validated with `getimagesize()` (not just the file extension), capped at 5MB, and
-saved into `uploads/`. **Deliberately not wired to Amazon S3** — that's a natural
-next exercise: swap `move_uploaded_file()` for an S3 `PutObject` call and store the
-resulting object URL in the same `image_url` column; the `<img>` rendering doesn't
-need to change either way.
+Uploads are validated with `getimagesize()` (not just the file extension) and capped
+at 5MB. Where they're stored depends on `AWS_S3_BUCKET` in `config.php`:
+- **Unset (default)**: saved into `uploads/`, `routes.image_url` stores a path like
+  `/uploads/route_xxx.jpg`. Nothing to configure.
+- **Set**: uploaded to that S3 bucket instead (hand-written Signature Version 4
+  signing over PHP's built-in stream wrapper — no AWS SDK, no Composer), and
+  `image_url` stores the full object URL.
+
+**This doesn't move anything already stored.** The demo photos seeded via
+`schema.sql` (and any photo uploaded before `AWS_S3_BUCKET` was set) already have a
+local `/uploads/...` path saved in the database — switching S3 on only affects the
+*next* upload/replace through the admin panel, it doesn't rewrite existing rows.
+Migrating those existing local images to S3 isn't built here; that's left as an
+exercise.
+
+Credentials are tried two ways: first an IAM role attached to the EC2 instance (via
+the metadata service, nothing hardcoded), and if that's not available — e.g. an AWS
+Academy Learner Lab where you can't attach or inspect IAM roles yourself — explicit
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`. Set these in a
+`.env` file (copy `.env.example` to `.env`, fill in the values from the lab's "AWS
+Details" panel — `.env` is git-ignored, so it's never committed to this public repo),
+or as Apache environment variables if you'd rather not use a file. Those temporary
+credentials expire and rotate periodically — if uploads that were working suddenly
+fail, refresh them and, if using `.env`, no restart is needed.
+
+This matters once there's more than one EC2 instance behind the ALB — a photo saved to
+local disk only exists on whichever instance handled the upload, so any other instance
+shows a broken image for it. **What's still on you**: creating the bucket + a public-read
+bucket policy (or CloudFront), getting one of the two credential methods above working,
+and setting `AWS_S3_BUCKET`/`AWS_S3_REGION`. The signing logic is verified against AWS's
+own SigV4 test vectors, the local-disk path is tested live end-to-end, and a signed
+request with fake credentials was confirmed to reach a real S3 endpoint and get a
+structured `403` back (not a crash/hang) — but a full successful round-trip against a
+real bucket with real credentials hasn't been tested, since there wasn't one available
+here.
 
 Notes for EC2 deployment:
 - `uploads/` needs to be writable by the web server user: `chmod 775 uploads` after
@@ -128,6 +158,10 @@ Notes for EC2 deployment:
   post_max_size = 12M
   ```
   then restart the web server.
+- Point your ALB target group's health check at `healthz.php` — it returns `200` only
+  if the database connection actually succeeds (`500` otherwise), so a target that
+  can't reach RDS gets correctly pulled out of rotation instead of still receiving
+  traffic.
 
 ## Phase 2: running it on a single EC2 instance
 
@@ -164,9 +198,13 @@ Notes for EC2 deployment:
    sudo mysql_secure_installation
    mysql -u root -p < schema.sql
    ```
-7. **Point the app at the database**: edit `config.php` (or export
-   `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` in Apache's environment, e.g. via a
-   `SetEnv` directive in `/etc/httpd/conf.d/`) to match your MySQL credentials.
+7. **Point the app at the database**: copy `.env.example` to `.env` and set
+   `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` there to match your MySQL
+   credentials (`config.php` loads `.env` automatically - see the loader at
+   the top of the file; `.env` is git-ignored so it's never committed). Or,
+   if you'd rather not use a file, edit `config.php` directly, or export the
+   same names as Apache environment variables via a `SetEnv` directive in
+   `/etc/httpd/conf.d/`.
 8. **Test it**: open `http://<public-ipv4>/` in a browser.
 
 ## Phase 3: moving the database to RDS
