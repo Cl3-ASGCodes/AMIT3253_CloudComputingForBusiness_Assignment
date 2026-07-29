@@ -18,20 +18,19 @@ function nav_active($page, $current) {
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="<?= htmlspecialchars($pageDescription ?? 'Buy tickets for campus society events - cultural nights, band battles, charity dinners and more.') ?>">
-<title><?= htmlspecialchars($pageTitle ?? 'Society Event Ticketing') ?></title>
+<meta name="description" content="<?= htmlspecialchars($pageDescription ?? 'Book campus sports facilities online - badminton, futsal and squash courts, available in real time.') ?>">
+<title><?= htmlspecialchars($pageTitle ?? 'Sports Facility Booking') ?></title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="stylesheet" href="style.css?v=<?= @filemtime(__DIR__ . '/../style.css') ?>">
 </head>
 <body>
 <nav class="navbar">
-<a class="brand" href="index.php"><img src="assets/tarumt-logo.png" alt="TAR UMT" class="brand-logo">Student Society Event Ticketing</a>
+<a class="brand" href="index.php"><img src="assets/tarumt-logo.png" alt="TAR UMT" class="brand-logo">Campus Sports Facility Booking</a>
 <div class="nav-links">
 <a href="index.php" class="<?= trim(nav_active('index.php', $currentPage)) ?>">Home</a>
-<a href="events.php" class="<?= trim(nav_active('events.php', $currentPage)) ?>">Events</a>
-<a href="venue.php" class="<?= trim(nav_active('venue.php', $currentPage)) ?>">Available Venue</a>
+<a href="facilities.php" class="<?= trim(nav_active('facilities.php', $currentPage)) ?>">Facilities</a>
 <a href="schedule.php" class="<?= trim(nav_active('schedule.php', $currentPage)) ?>">Schedule</a>
-<!--a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a-->
+<a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a>
 <a href="about.php" class="<?= trim(nav_active('about.php', $currentPage)) ?>">About</a>
 <a href="contact.php" class="<?= trim(nav_active('contact.php', $currentPage)) ?>">Contact</a>
 <?php if ($loggedIn): ?>

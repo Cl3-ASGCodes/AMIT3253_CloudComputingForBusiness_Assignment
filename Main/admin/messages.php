@@ -8,7 +8,10 @@ $messages = $conn->query('SELECT * FROM contact_messages ORDER BY created_at DES
 $pageTitle = 'Contact Messages';
 require 'partials/header.php';
 ?>
+<div class="page-header">
 <h1>Contact Messages</h1>
+<p>Messages submitted through the public Contact Us form.</p>
+</div>
 <?php if (empty($messages)): ?>
 <div class="empty-state">
 <div class="empty-state-icon">&#128231;</div>

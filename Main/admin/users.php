@@ -32,7 +32,7 @@ require 'partials/header.php';
 <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
 <button type="submit" class="btn btn-secondary btn-small"><?= $u['is_admin'] ? 'Revoke Admin' : 'Make Admin' ?></button>
 </form>
-<form action="user_delete.php" method="post" style="display:inline" onsubmit="return confirm('Delete this user? This will PERMANENTLY delete their account together with ALL of their orders (restoring ticket inventory) and testimonials. This cannot be undone.');">
+<form action="user_delete.php" method="post" style="display:inline" onsubmit="return confirm('Delete this user? This will PERMANENTLY delete their account together with ALL of their bookings, notifications, and testimonials. This cannot be undone.');">
 <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
 <button type="submit" class="btn-small btn-danger">Delete</button>
 </form>

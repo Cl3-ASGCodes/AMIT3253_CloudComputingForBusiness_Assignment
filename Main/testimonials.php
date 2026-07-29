@@ -6,16 +6,16 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_login();
-    $event_id = (int)$_POST['event_id'];
-    $comment  = trim($_POST['comment']);
-    $rating   = (int)$_POST['rating'];
-    $uid      = current_user_id();
+    $facility_id = (int)$_POST['facility_id'];
+    $comment     = trim($_POST['comment']);
+    $rating      = (int)$_POST['rating'];
+    $uid         = current_user_id();
 
-    if ($event_id < 1 || $comment === '' || $rating < 1 || $rating > 5) {
-        $error = 'Please choose an event, write a comment, and pick a rating between 1 and 5.';
+    if ($facility_id < 1 || $comment === '' || $rating < 1 || $rating > 5) {
+        $error = 'Please choose a facility, write a comment, and pick a rating between 1 and 5.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO testimonials (user_id, event_id, comment, rating) VALUES (?, ?, ?, ?)');
-        $stmt->bind_param('iisi', $uid, $event_id, $comment, $rating);
+        $stmt = $conn->prepare('INSERT INTO testimonials (user_id, facility_id, comment, rating) VALUES (?, ?, ?, ?)');
+        $stmt->bind_param('iisi', $uid, $facility_id, $comment, $rating);
         if ($stmt->execute()) {
             $stmt->close();
             header('Location: testimonials.php');
@@ -26,13 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$events = $conn->query('SELECT id, event_name FROM events ORDER BY event_name')->fetch_all(MYSQLI_ASSOC);
+$facilities = $conn->query('SELECT id, name FROM facilities ORDER BY name')->fetch_all(MYSQLI_ASSOC);
 
 $testimonials = $conn->query('
-    SELECT t.id, t.comment, t.rating, t.created_at, t.user_id, u.name AS user_name, e.event_name
+    SELECT t.id, t.comment, t.rating, t.created_at, t.user_id, u.name AS user_name, f.name AS facility_name
     FROM testimonials t
     JOIN users u ON u.id = t.user_id
-    JOIN events e ON e.id = t.event_id
+    JOIN facilities f ON f.id = t.facility_id
     ORDER BY t.created_at DESC
 ')->fetch_all(MYSQLI_ASSOC);
 
@@ -41,7 +41,7 @@ require 'partials/header.php';
 ?>
 <div class="page-header">
 <h1>Testimonials</h1>
-<p>What attendees are saying about past society events.</p>
+<p>What students and staff are saying about booking campus facilities.</p>
 </div>
 
 <?php if (current_user_id()): ?>
@@ -49,11 +49,11 @@ require 'partials/header.php';
 <h2>Leave a Comment</h2>
 <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 <form method="post">
-<label>Event
-<select name="event_id" required>
-<option value="">-- Select an event --</option>
-<?php foreach ($events as $e): ?>
-<option value="<?= (int)$e['id'] ?>"><?= htmlspecialchars($e['event_name']) ?></option>
+<label>Facility
+<select name="facility_id" required>
+<option value="">-- Select a facility --</option>
+<?php foreach ($facilities as $f): ?>
+<option value="<?= (int)$f['id'] ?>"><?= htmlspecialchars($f['name']) ?></option>
 <?php endforeach; ?>
 </select>
 </label>
@@ -83,7 +83,7 @@ require 'partials/header.php';
 <div class="testimonial-list">
 <?php foreach ($testimonials as $t): ?>
 <div class="testimonial-card">
-<span class="badge badge-accent"><?= htmlspecialchars($t['event_name']) ?></span>
+<span class="badge badge-accent"><?= htmlspecialchars($t['facility_name']) ?></span>
 <div class="testimonial-stars"><?= str_repeat('&#9733;', $t['rating']) . str_repeat('&#9734;', 5 - $t['rating']) ?></div>
 <p class="testimonial-comment"><?= nl2br(htmlspecialchars($t['comment'])) ?></p>
 <div class="testimonial-meta">

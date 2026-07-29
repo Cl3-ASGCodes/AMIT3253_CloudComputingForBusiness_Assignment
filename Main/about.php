@@ -2,45 +2,81 @@
 require 'config.php';
 require 'auth.php';
 
-$pageTitle = 'About';
+$bookingCount = $conn->query('SELECT COUNT(*) AS c FROM bookings')->fetch_assoc()['c'];
+$memberCount = $conn->query('SELECT COUNT(*) AS c 
+                             FROM users u
+                             JOIN login l ON u.login_id = l.id
+                             WHERE l.user_type != \'admin\'
+                            ')->fetch_assoc()['c'];
+
+$pageTitle = 'About Us';
 require 'partials/header.php';
 ?>
-<div class="page-header">
-<h1>About This Platform</h1>
-<p>What Student Society Event Ticketing is, and how it works.</p>
+<div class="about-hero">
+<div class="about-hero-icons">&#127992; &#9917; &#127934; &#127947;</div>
+<h1>Campus Sports Facility Booking</h1>
+<p>Serving the TAR UMT community since 2010</p>
 </div>
 
 <section>
-<h2>Our Mission</h2>
-<p>Student Society Event Ticketing gives every registered campus society a single place to sell
-tickets for their events — cultural nights, band battles, charity dinners and more — without
-relying on manual sign-up sheets or spreadsheets that run out of seats.</p>
+<h2>Our Story</h2>
+<p>Founded in 2010, the TAR UMT Sports Complex has grown from a single badminton hall
+into a full multi-sport facility serving thousands of students and staff every year.
+What started as a paper sign-up sheet at the front counter is now this online booking
+platform — built to replace manual queues with a simple, transparent system so anyone
+on campus can check what's free and reserve a slot in under a minute.</p>
 </section>
 
 <section>
 <h2>How It Works</h2>
-<div class="card-grid">
-<div class="card">
-<div class="card-icon">&#128197;</div>
-<h3>1. Browse Events</h3>
-<p>See every upcoming event with its date, venue and live ticket availability.</p>
+<div class="timeline">
+<div class="timeline-step timeline-step-left">
+<div class="timeline-marker"></div>
+<div class="timeline-content">
+<h3>1. Browse Facilities</h3>
+<p>Explore available facilities and check real-time schedules before you head over.</p>
 </div>
-<div class="card">
-<div class="card-icon">&#127903;</div>
-<h3>2. Buy Tickets</h3>
-<p>Choose how many tickets you need — the system checks availability in real time.</p>
 </div>
-<div class="card">
-<div class="card-icon">&#9989;</div>
-<h3>3. Manage Orders</h3>
-<p>Change the quantity or cancel an order anytime from your homepage.</p>
+<div class="timeline-step timeline-step-right">
+<div class="timeline-marker"></div>
+<div class="timeline-content">
+<h3>2. Check Availability</h3>
+<p>View each time slot's status on the Schedule page — Available, Booked or Closed.</p>
+</div>
+</div>
+<div class="timeline-step timeline-step-left">
+<div class="timeline-marker"></div>
+<div class="timeline-content">
+<h3>3. Make a Booking</h3>
+<p>Pick a date and time slot that works for you — it's reserved the moment you confirm.</p>
+</div>
+</div>
+<div class="timeline-step timeline-step-right">
+<div class="timeline-marker"></div>
+<div class="timeline-content">
+<h3>4. Get Confirmation</h3>
+<p>Receive an instant on-screen confirmation with a reference number for your records.</p>
+</div>
+</div>
+<div class="timeline-step timeline-step-left">
+<div class="timeline-marker"></div>
+<div class="timeline-content">
+<h3>5. Enjoy Your Game</h3>
+<p>Show up at your slot. No queueing, no double-booking, no fuss.</p>
+</div>
 </div>
 </div>
 </section>
 
 <section>
-<h2>Who Runs This</h2>
-<p>This platform is a sample project built for the AMIT3253 Cloud Computing for Business
-capstone assignment, demonstrating a simple booking/ticketing system deployed on AWS.</p>
+<h2>By the Numbers</h2>
+<div class="card-grid">
+<div class="stat-tile"><div class="stat-value"><?= (int)$bookingCount ?></div><div class="stat-label">Bookings made</div></div>
+<div class="stat-tile"><div class="stat-value"><?= (int)$memberCount ?></div><div class="stat-label">Members registered</div></div>
+</div>
 </section>
+<div class="card-actions">
+<a class="btn btn-secondary btn-small" href="facilities.php">See what's available &rarr;</a>
+<a class="btn btn-secondary btn-small" href="contact.php">Contact us &rarr;</a>
+</div>
 <?php require 'partials/footer.php'; ?>

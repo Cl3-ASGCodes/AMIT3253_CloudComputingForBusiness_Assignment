@@ -10,11 +10,11 @@ $profileSuccess = '';
 $passwordError = '';
 $passwordSuccess = '';
 
-// $stmt = $conn->prepare('SELECT name, email, id_number, faculty, date_of_birth FROM users WHERE id = ?');
-// $stmt->bind_param('i', $uid);
-// $stmt->execute();
-// $user = $stmt->get_result()->fetch_assoc();
-// $stmt->close();
+$stmt = $conn->prepare('SELECT name, email, id_number, faculty, date_of_birth FROM users WHERE id = ?');
+$stmt->bind_param('i', $uid);
+$stmt->execute();
+$user = $stmt->get_result()->fetch_assoc();
+$stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['form'] ?? '') === 'profile') {
     $name          = trim($_POST['name'] ?? '');

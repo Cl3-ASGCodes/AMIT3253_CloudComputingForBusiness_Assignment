@@ -29,11 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pageTitle = 'Contact Us';
+$pageDescription = 'Get in touch with the campus sports facility booking team - location, contact number, operating hours and a message form.';
 require 'partials/header.php';
 ?>
 <div class="page-header">
 <h1>Contact Us</h1>
-<p>Have a question about an event or an order? Get in touch.</p>
+<p>Have a question about bookings, facilities, or something else? Get in touch.</p>
 </div>
 
 <section>
@@ -41,17 +42,17 @@ require 'partials/header.php';
 <div class="card">
 <div class="card-icon">&#128205;</div>
 <h3>Location</h3>
-<p>Student Societies Office<br>Student Centre, Level 1</p>
+<p>TAR UMT Sports Complex<br>Jalan Genting Kelang, Setapak<br>53300 Kuala Lumpur</p>
 </div>
 <div class="card">
 <div class="card-icon">&#128222;</div>
 <h3>Contact</h3>
-<p>+60 3-4145 0450<br>societies@tarumt.edu.my</p>
+<p>+60 3-4145 0450<br>sportscentre@tarumt.edu.my</p>
 </div>
 <div class="card">
 <div class="card-icon">&#128337;</div>
-<h3>Office Hours</h3>
-<p>Mon - Fri: 9:00 AM - 5:00 PM</p>
+<h3>Operating Hours</h3>
+<p>Mon - Fri: 7:00 AM - 10:00 PM<br>Sat - Sun: 8:00 AM - 9:00 PM<br>Public Holidays: 9:00 AM - 6:00 PM</p>
 </div>
 </div>
 </section>

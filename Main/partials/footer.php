@@ -2,15 +2,15 @@
 <footer class="site-footer">
 <div class="footer-grid">
 <div class="footer-brand">
-<div class="footer-brand-name">Venue Booking and Ticketing Portal</div>
-<p>Hybrid portal for booking event venue <br> and ticketing for various events </p>
+<div class="footer-brand-name">Campus Sports Facility Booking</div>
+<p>Book badminton courts, futsal, swimming and more &mdash; free for all students and staff.</p>
 </div>
 <div class="footer-links">
 <h4>Explore</h4>
 <a href="index.php">Home</a>
-<a href="events.php">Events</a>
+<a href="facilities.php">Facilities</a>
 <a href="schedule.php">Schedule</a>
-<!--a href="testimonials.php">Testimonials</a-->
+<a href="testimonials.php">Testimonials</a>
 </div>
 <div class="footer-links">
 <h4>Company</h4>
@@ -19,55 +19,18 @@
 </div>
 <div class="footer-links">
 <h4>Contact</h4>
-<p>Student Societies Office<br>Student Centre, Level 1</p>
+<p>Jalan Genting Kelang, Setapak<br>53300 Kuala Lumpur</p>
 <p>+60 3-4145 0450</p>
 </div>
 </div>
 <div class="footer-bottom">
-<p>&copy; <?= date('Y') ?> Student Society Event Ticketing &middot; AMIT3253 Sample Project</p>
+<p>&copy; <?= date('Y') ?> Campus Sports Facility Booking &middot; AMIT3253 Sample Project</p>
 </div>
 </footer>
 <div id="lightbox" class="lightbox-overlay">
 <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
 <img id="lightbox-img" src="" alt="">
 </div>
-<script>
-(function () {
-    var lightbox = document.getElementById('lightbox');
-    var lightboxImg = document.getElementById('lightbox-img');
-    if (lightbox && lightboxImg) {
-        document.addEventListener('click', function (e) {
-            var img = e.target.closest('.card-thumb, .table-thumb');
-            if (img) {
-                lightboxImg.src = img.src;
-                lightboxImg.alt = img.alt;
-                lightbox.classList.add('open');
-            }
-        });
-        lightbox.addEventListener('click', function () {
-            lightbox.classList.remove('open');
-            lightboxImg.src = '';
-        });
-    }
-})();
-</script>
-<script>
-(function () {
-    var trigger = document.querySelector('.user-menu-trigger');
-    var dropdown = document.querySelector('.user-menu-dropdown');
-    if (trigger && dropdown) {
-        trigger.addEventListener('click', function (e) {
-            e.stopPropagation();
-            var isOpen = dropdown.classList.toggle('open');
-            trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-        document.addEventListener('click', function () {
-            dropdown.classList.remove('open');
-            trigger.setAttribute('aria-expanded', 'false');
-        });
-    }
-})();
-</script>
 <script>
 (function () {
     var btn = document.getElementById('theme-toggle');
@@ -91,6 +54,45 @@
     });
 
     updateIcon();
+})();
+</script>
+<script>
+(function () {
+    var trigger = document.querySelector('.user-menu-trigger');
+    var dropdown = document.querySelector('.user-menu-dropdown');
+    if (!trigger || !dropdown) return;
+
+    trigger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var isOpen = dropdown.classList.toggle('open');
+        trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function () {
+        dropdown.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+    });
+})();
+</script>
+<script>
+(function () {
+    var lightbox = document.getElementById('lightbox');
+    var lightboxImg = document.getElementById('lightbox-img');
+    if (!lightbox || !lightboxImg) return;
+
+    document.addEventListener('click', function (e) {
+        var img = e.target.closest('.card-thumb, .table-thumb');
+        if (img) {
+            lightboxImg.src = img.src;
+            lightboxImg.alt = img.alt;
+            lightbox.classList.add('open');
+        }
+    });
+
+    lightbox.addEventListener('click', function () {
+        lightbox.classList.remove('open');
+        lightboxImg.src = '';
+    });
 })();
 </script>
 <script>

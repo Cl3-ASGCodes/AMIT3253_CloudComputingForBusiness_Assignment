@@ -5,51 +5,70 @@ require 'helpers.php';
 
 $search = trim($_GET['q'] ?? '');
 
-// if ($search !== '') {
-//     $stmt = $conn->prepare('SELECT *, (total_tickets - tickets_sold) AS remaining FROM events WHERE event_name LIKE ? ORDER BY event_date');
-//     $likeSearch = '%' . $search . '%';
-//     $stmt->bind_param('s', $likeSearch);
-//     $stmt->execute();
-//     $events = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-//     $stmt->close();
-// } else {
-//     $events = $conn->query('SELECT *, (total_tickets - tickets_sold) AS remaining FROM events ORDER BY event_date')->fetch_all(MYSQLI_ASSOC);
-// }
+if ($search !== '') {
+    $stmt = $conn->prepare('SELECT * FROM facilities WHERE name LIKE ? ORDER BY name');
+    $likeSearch = '%' . $search . '%';
+    $stmt->bind_param('s', $likeSearch);
+    $stmt->execute();
+    $facilities = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+} else {
+    $facilities = $conn->query('SELECT * FROM facilities ORDER BY name')->fetch_all(MYSQLI_ASSOC);
+}
 
-$myOrders = [];
-// if ($uid = current_user_id()) {
-//     $stmt = $conn->prepare('
-//         SELECT o.id, e.event_name, e.has_seating, o.quantity, o.total_price
-//         FROM orders o
-//         JOIN events e ON e.id = o.event_id
-//         WHERE o.user_id = ?
-//         ORDER BY o.created_at DESC
-//     ');
-//     $stmt->bind_param('i', $uid);
-//     $stmt->execute();
-//     $myOrders = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-//     $stmt->close();
-// }
+$notifications = [];
+$myBookings = [];
+if ($uid = current_user_id()) {
+    $stmt = $conn->prepare('SELECT id, message, created_at FROM notifications WHERE user_id = ? AND read_at IS NULL ORDER BY created_at DESC');
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $notifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
 
-$pageTitle = 'TARUMT Venue Booking and Events';
+    $stmt = $conn->prepare('
+        SELECT b.id, f.name AS facility_name, co.name AS court_name, b.booking_date, t.label AS time_slot
+        FROM bookings b
+        JOIN courts co ON co.id = b.court_id
+        JOIN facilities f ON f.id = co.facility_id
+        JOIN time_slots t ON t.id = b.time_slot_id
+        WHERE b.user_id = ?
+        ORDER BY b.booking_date, t.sort_order
+    ');
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $myBookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt->close();
+}
+
+$pageTitle = 'Sports Facility Booking';
 require 'partials/header.php';
 ?>
-<section class="hero">
-<h1>Portal for Booking Venue and Event ticketing in TARUMT</h1>
-<p>Welcome to TARUMT's venue booking and event</p>
-</section>
+<?php foreach ($notifications as $n): ?>
+<div class="alert alert-warning">
+<span>&#128276; <?= htmlspecialchars($n['message']) ?></span>
+<form action="notification_dismiss.php" method="post">
+<input type="hidden" name="id" value="<?= (int)$n['id'] ?>">
+<button type="submit" class="btn btn-small btn-secondary">Dismiss</button>
+</form>
+</div>
+<?php endforeach; ?>
+
+<div class="page-header">
+<h1>Campus Sports Facility Booking</h1>
+<p>Reserve badminton courts, futsal courts and more in a few clicks.</p>
+</div>
 
 <section>
-<h2>Upcoming Events</h2>
-<form method="get" class="filter-bar" id="event-filter-form">
-<label>Search <input type="text" name="q" id="event-search" placeholder="Event name..." value="<?= htmlspecialchars($search) ?>" autocomplete="off"></label>
+<h2 id="facilities">Available Facilities</h2>
+<form method="get" class="filter-bar" id="facility-filter-form">
+<label>Search <input type="text" name="q" id="facility-search" placeholder="Facility name..." value="<?= htmlspecialchars($search) ?>" autocomplete="off"></label>
 <button type="submit">Search</button>
-<?php if ($search !== ''): ?><a class="btn btn-secondary" href="index.php">Clear</a><?php endif; ?>
+<?php if ($search !== ''): ?><a class="btn btn-secondary" href="index.php#facilities">Clear</a><?php endif; ?>
 </form>
 <script>
 (function () {
-    var input = document.getElementById('event-search');
-    var form = document.getElementById('event-filter-form');
+    var input = document.getElementById('facility-search');
+    var form = document.getElementById('facility-filter-form');
     if (!input || !form) return;
     var timer;
     input.addEventListener('input', function () {
@@ -61,31 +80,28 @@ require 'partials/header.php';
 })();
 </script>
 
-<?php if (empty($events)): ?>
+<?php if (empty($facilities)): ?>
 <div class="empty-state">
 <div class="empty-state-icon">&#128269;</div>
-<p>No events match your search.</p>
-<a class="btn btn-small btn-secondary" href="index.php">Clear filters</a>
+<p>No facilities match your search.</p>
+<a class="btn btn-small btn-secondary" href="index.php#facilities">Clear filters</a>
 </div>
 <?php else: ?>
 <div class="card-grid">
-<?php foreach ($events as $e): ?>
+<?php foreach ($facilities as $f): ?>
 <div class="card">
-<img class="card-thumb" src="<?= htmlspecialchars(entity_image_url($e)) ?>" alt="<?= htmlspecialchars($e['event_name']) ?>" loading="lazy">
-<h3><?= htmlspecialchars($e['event_name']) ?></h3>
-<p><?= htmlspecialchars($e['event_date']) ?> &middot; <?= htmlspecialchars($e['venue']) ?></p>
-<p>RM<?= number_format($e['ticket_price'], 2) ?> &middot; <?= (int)$e['remaining'] ?> / <?= (int)$e['total_tickets'] ?> left</p>
-<?php if ($e['remaining'] <= 0): ?>
-<button class="btn" disabled>Sold Out</button>
-<?php elseif (current_user_id()): ?>
-<?php if ($e['has_seating']): ?>
-<a class="btn" href="seat_select.php?event_id=<?= (int)$e['id'] ?>">Select Seats</a>
+<img class="card-thumb" src="<?= htmlspecialchars(facility_image_url($f)) ?>" alt="<?= htmlspecialchars($f['name']) ?>" loading="lazy">
+<h3><?= htmlspecialchars($f['name']) ?></h3>
+<p><?= htmlspecialchars($f['location']) ?></p>
+<p>Capacity: <?= (int)$f['capacity'] ?></p>
+<div class="card-actions">
+<a class="btn btn-secondary btn-small" href="schedule.php?facility_id=<?= (int)$f['id'] ?>">View Schedule</a>
+<?php if (current_user_id()): ?>
+<a class="btn btn-small" href="create.php?facility_id=<?= (int)$f['id'] ?>">Book Now</a>
 <?php else: ?>
-<a class="btn" href="create.php?event_id=<?= (int)$e['id'] ?>">Buy Tickets</a>
+<a class="btn btn-small" href="login.php">Login to Book</a>
 <?php endif; ?>
-<?php else: ?>
-<a class="btn" href="login.php">Login to Buy</a>
-<?php endif; ?>
+</div>
 </div>
 <?php endforeach; ?>
 </div>
@@ -93,30 +109,31 @@ require 'partials/header.php';
 </section>
 
 <section>
-<h2>My Orders</h2>
+<h2>My Bookings</h2>
 <?php if (!current_user_id()): ?>
-<p><a href="login.php">Login</a> or <a href="register.php">register</a> to view and manage your ticket orders.</p>
-<?php elseif (empty($myOrders)): ?>
 <div class="empty-state">
-<div class="empty-state-icon">&#127903;</div>
-<p>You haven't bought any tickets yet.</p>
+<div class="empty-state-icon">&#128100;</div>
+<p><a href="login.php">Login</a> or <a href="register.php">register</a> to view and manage your bookings.</p>
+</div>
+<?php elseif (empty($myBookings)): ?>
+<div class="empty-state">
+<div class="empty-state-icon">&#128197;</div>
+<p>You have no bookings yet. Book a facility above to get started.</p>
 </div>
 <?php else: ?>
 <table>
-<tr><th>Event</th><th>Qty</th><th>Total (RM)</th><th>Actions</th></tr>
-<?php foreach ($myOrders as $o): ?>
+<tr><th>Facility</th><th>Court</th><th>Date</th><th>Time Slot</th><th>Actions</th></tr>
+<?php foreach ($myBookings as $b): ?>
 <tr>
-<td><?= htmlspecialchars($o['event_name']) ?></td>
-<td><?= (int)$o['quantity'] ?></td>
-<td><?= number_format($o['total_price'], 2) ?></td>
+<td><?= htmlspecialchars($b['facility_name']) ?></td>
+<td><?= htmlspecialchars($b['court_name']) ?></td>
+<td><?= htmlspecialchars($b['booking_date']) ?></td>
+<td><?= htmlspecialchars($b['time_slot']) ?></td>
 <td>
-<a class="btn btn-secondary btn-small" href="confirmation.php?id=<?= (int)$o['id'] ?>">View Tickets</a>
-<?php if (!$o['has_seating']): ?>
-<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$o['id'] ?>">Edit</a>
-<?php endif; ?>
-<form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Cancel this order?');">
-<input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
-<button type="submit" class="btn-small btn-danger">Cancel</button>
+<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$b['id'] ?>">Edit</a>
+<form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Delete this booking?');">
+<input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+<button type="submit" class="btn-small btn-danger">Delete</button>
 </form>
 </td>
 </tr>

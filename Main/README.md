@@ -1,71 +1,71 @@
-# Student Society & Event Ticketing Platform
+# Campus Sports & Facilities Amenities — Booking Platform
 
 A minimal PHP + MySQL CRUD web app for the **AMIT3253 Cloud Computing for Business**
-capstone assignment. Students browse campus events (concerts, society nights,
-talks), buy tickets against a live inventory count, and simulate paying for them.
-Use this folder as-is as your Phase 2/3 starting point so you can focus on the AWS
-infrastructure (VPC, EC2, RDS, ELB, ASG) instead of writing app code from scratch.
+capstone assignment. Students browse sports facilities (badminton courts, bowling
+lanes, table tennis, etc.), check a live availability schedule, and book a time
+slot. Use this folder as-is as your Phase 2/3 starting point so you can focus on the
+AWS infrastructure (VPC, EC2, RDS, ELB, ASG) instead of writing app code from
+scratch.
 
 ![Homepage screenshot](screenshots/homepage.png)
-*Homepage — browse events as photo cards, general admission or assigned seating.*
+*Homepage — browse facilities as photo cards.*
 
-![Seat picker](screenshots/seat-select.png)
-*`seat_select.php` — pick exact seats for events with assigned seating.*
+![Facility schedule grid](screenshots/schedule.png)
+*`schedule.php` — availability grid for a facility's courts by date.*
 
-![QR tickets on the confirmation page](screenshots/qr-tickets.png)
-*Confirmation page — one QR code per ticket, generated client-side, for admin check-in.*
+![Booking form with time-slot availability](screenshots/booking-form.png)
+*Booking form — already-booked/closed/past time slots are greyed out before you submit.*
+
+This is the most feature-complete of the five scenario folders — treat it as a
+reference for how far you *could* take a scenario, not the bar every group needs to
+hit.
 
 ## Features
 
 **Public site**
-- Browse events as photo cards, with search on the homepage.
-- Buy tickets by quantity against `total_tickets` / `tickets_sold` — the app won't
-  let you buy more tickets than remain. A sold-out event can't even be selected in
-  the first place: its "Buy Tickets" button on the homepage becomes a disabled "Sold
-  Out" button, and its option in the event dropdown is disabled too, not just
-  rejected after you try.
-- **`payment.php`** — a two-step simulated checkout (review → confirm) supporting
-  either card details or FPX bank transfer, with server-side validation branching on
-  the selected payment method.
-- **Assigned seating for events that need it.** An event can optionally have
-  `has_seating` turned on with a rows × seats-per-row layout (`seat_select.php`) —
-  buyers click their exact seats on a live map (taken seats are greyed out) instead
-  of just picking a quantity. Booking a seat is concurrency-safe (`SELECT ... FOR
-  UPDATE` on the chosen seat rows inside a transaction), so two buyers can't land the
-  same seat in a race. Events without seating keep the original quantity-based flow.
-- **QR ticket + check-in.** After a successful payment, every ticket purchased (one
-  per seat, or one per unit for quantity-based events) gets its own QR code on the
-  confirmation page (rendered client-side, no external service call — see
-  `assets/js/qrcode.js`). The QR encodes a long random token, **not** the attendee's
-  name/email, so a photographed or glimpsed QR code can't leak personal info; admin's
-  `admin/checkin.php` looks up the attendee/event/seat from that token and marks the
-  ticket present, safely idempotent if scanned twice.
-- "My Orders" on the homepage, with edit/cancel for your own orders and a "View
-  Tickets" link back to the QR codes. Editing quantity is disabled for seated-event
-  orders (cancel and rebook instead, since a specific seat can't be reassigned by
-  just changing a number).
+- Browse facilities as photo cards, with search/filter on the homepage.
+- Facility detail page with photo + optional court-layout diagram.
+- **`schedule.php`** — pick a facility and date to see a grid of every court's time
+  slots (Available / Booked / Booked by you / Closed with reason). Available cells
+  link straight into the booking form pre-filled.
+- Book a specific court + date + time slot; the database enforces one booking per
+  court/date/slot (`UNIQUE` constraint), so double-booking is impossible even under
+  concurrent requests. The time slot dropdown also greys out (and disables) slots
+  that are already booked, closed, or already passed today as soon as a court and
+  date are picked — a small fetch to **`slot_availability.php`** (no page reload).
+- Booking date defaults to today and cannot be set in the past (checked both in the
+  browser and on the server). For today specifically, time slots that have already
+  started are also greyed out and rejected server-side if submitted anyway, via the
+  `is_slot_in_past()` helper in `helpers.php`.
+- "My Bookings" on the homepage, with edit/cancel for your own bookings.
 - Register/login/logout, account page, dark/light mode, password visibility toggle,
   TARUMT faculty dropdown at registration.
+- In-app notifications (e.g. booking confirmed, closure affecting your booking).
 - Contact form and testimonials (reviews), both moderated by admin.
 
 **Admin panel** (`admin/`, gated by an `is_admin` flag — admins land directly on
-`admin/events.php`, never the public site)
-- Full CRUD for events: name, date, venue, ticket price, total tickets, photo.
-  Event date cannot be set in the past, and total tickets can't be reduced below
-  what's already sold. Optionally toggle assigned seating (rows × seats per row) at
-  creation time — the seat map is generated immediately and can't be changed
-  afterwards (only the event's other details stay editable).
-- View/cancel any user's order, and see how many of each order's tickets have been
-  checked in.
-- **`admin/checkin.php`** — paste or scan a ticket's QR token to look up the
-  attendee, event, and seat, then mark them present. Re-scanning an already-checked-in
-  ticket shows the original check-in time instead of a second "Mark Present" button.
+`admin/facilities.php`, never the public site)
+- Full CRUD for facilities (name, description, photo, layout diagram).
+- CRUD for courts within a facility (a facility is a sport/category; a court is the
+  specific bookable instance — e.g. Bowling has Lane 1–4).
+- View/cancel any user's booking.
+- **`admin/schedule.php`** — the same availability grid the public site has, but
+  admin-only: booked cells show the actual booker's name and email (the public
+  version only ever shows "Booked", never who), so an admin can see who's using a
+  court at a glance instead of cross-referencing `admin/bookings.php`'s flat list.
+- Closures — mark a court closed for a slot or a whole day (e.g. maintenance);
+  `schedule.php` and the booking form respect this automatically.
 - Moderate testimonials and view contact messages.
 - Manage user accounts: promote/demote admin access, delete an account (cascades — deleting a user also deletes all of their bookings/orders/tickets and testimonials in the same transaction, so there's nothing left over to clean up manually), or create a brand-new admin account directly (`admin/user_create.php`) without needing that person to self-register first. An admin can never delete or demote their own account.
 
-There's deliberately **no admin dashboard** (`admin/index.php`) and no notification
-system — those are left as exercises using the same query/render patterns as the
-other admin pages.
+**Adding a brand-new sport needs zero code changes** — create one facility (with its
+first court) via `admin/facility_create.php`, then add more courts on
+`admin/facility_edit.php`. Every page reads courts generically off whichever facility
+they belong to.
+
+There's deliberately **no admin dashboard** (`admin/index.php`) — stats tiles
+(facility count, bookings today, etc.) are left as an exercise using the same
+query/render patterns as the other admin pages.
 
 ## Tech stack
 
@@ -82,16 +82,15 @@ patterns to reuse elsewhere in your project.
 ## Quick start (local)
 
 1. Create the database and import the schema (this also seeds an admin account and
-   six sample events — three general-admission, three with assigned seating — each
-   with a real seat map generated automatically):
+   some sample facilities/courts/time slots):
    ```
-   mysql -u root -p -e "CREATE DATABASE event_ticketing_db"
-   mysql -u root -p event_ticketing_db < schema.sql
+   mysql -u root -p -e "CREATE DATABASE sports_booking_db"
+   mysql -u root -p sports_booking_db < schema.sql
    ```
 2. Point `config.php` at your MySQL instance — either edit the fallback values
    directly, or export environment variables before starting PHP:
    ```
-   DB_HOST=localhost DB_USER=root DB_PASS=yourpassword DB_NAME=event_ticketing_db
+   DB_HOST=localhost DB_USER=root DB_PASS=yourpassword DB_NAME=sports_booking_db
    ```
 3. Serve the folder, e.g.:
    ```
@@ -116,30 +115,58 @@ Regular users register their own accounts via the Register page.
 | Path | Purpose |
 |---|---|
 | `schema.sql` | Creates the database, all tables, and seed data |
-| `config.php` | Database connection — reads `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` |
+| `config.php` | Database connection — reads `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME`, plus S3 photo storage config |
+| `healthz.php` | ALB health check target — `200` if the DB connection works, `500` otherwise |
 | `auth.php` | Session helpers: `current_user_id()`, `require_login()`, `require_admin()`, etc. |
 | `helpers.php` | Image upload/delete helpers, faculty list, entity image URL resolver |
 | `register.php` / `login.php` / `logout.php` | Account creation and session login (passwords hashed, never plaintext) |
-| `index.php` | Public landing page — event cards + "My Orders" |
-| `create.php` / `edit.php` / `delete.php` | Order CRUD, requires login + ownership |
-| `seat_select.php` | Seat-map picker for events with `has_seating = 1` |
-| `payment.php` | Simulated checkout (card or FPX); creates one `tickets` row (with QR token) per seat/unit purchased |
-| `confirmation.php` | Order receipt + one QR code per ticket |
-| `events.php`, `about.php`, `contact.php`, `testimonials.php` | Public informational pages |
+| `index.php` | Public landing page — facility cards + "My Bookings" |
+| `schedule.php` | Availability grid by facility + date |
+| `create.php` / `edit.php` / `delete.php` | Booking CRUD, requires login + ownership |
+| `slot_availability.php` | JSON endpoint the booking form fetches to grey out unavailable time slots |
+| `facilities.php`, `about.php`, `contact.php`, `testimonials.php` | Public informational pages |
 | `partials/header.php` / `partials/footer.php` | Shared navbar/footer, included by every page |
-| `admin/` | Admin-only CRUD for events, orders, testimonials, messages, users, plus `admin/checkin.php` for QR ticket check-in |
-| `assets/js/qrcode.js` | Vendored client-side QR code generator ([kazuhikoarase/qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), MIT) — no external network calls at runtime |
-| `uploads/` | Uploaded event photos |
-| `style.css` | Shared styling (navbar, cards, forms, tables, seat map, tickets, dark/light mode) |
+| `admin/` | Admin-only CRUD for facilities, courts, bookings, closures, testimonials, messages, users |
+| `uploads/` | Uploaded facility photos and layout diagrams |
+| `style.css` | Shared styling (navbar, cards, forms, tables, dark/light mode) |
 
-## Event photos: local uploads now, S3 as an exercise
+## Facility photos: local disk by default, S3 already wired up (just needs your bucket)
 
-`events.image_url` stores a path like `/uploads/event_xxx.jpg`. Uploads are
-validated with `getimagesize()` (not just the file extension), capped at 5MB, and
-saved into `uploads/`. **Deliberately not wired to Amazon S3** — that's a natural
-next exercise: swap `move_uploaded_file()` for an S3 `PutObject` call and store the
-resulting object URL in the same `image_url` column; the `<img>` rendering doesn't
-need to change either way.
+Uploads are validated with `getimagesize()` (not just the file extension) and capped
+at 5MB. Where they're stored depends on `AWS_S3_BUCKET` in `config.php`:
+- **Unset (default)**: saved into `uploads/`, `facilities.image_url` stores a path
+  like `/uploads/facility_xxx.jpg`. Nothing to configure.
+- **Set**: uploaded to that S3 bucket instead (hand-written Signature Version 4
+  signing over PHP's built-in stream wrapper — no AWS SDK, no Composer), and
+  `image_url` stores the full object URL.
+
+**This doesn't move anything already stored.** The demo photos seeded via
+`schema.sql` (and any photo uploaded before `AWS_S3_BUCKET` was set) already have a
+local `/uploads/...` path saved in the database — switching S3 on only affects the
+*next* upload/replace through the admin panel, it doesn't rewrite existing rows.
+Migrating those existing local images to S3 isn't built here; that's left as an
+exercise.
+
+Credentials are tried two ways: first an IAM role attached to the EC2 instance (via
+the metadata service, nothing hardcoded), and if that's not available — e.g. an AWS
+Academy Learner Lab where you can't attach or inspect IAM roles yourself — explicit
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`. Set these in a
+`.env` file (copy `.env.example` to `.env`, fill in the values from the lab's "AWS
+Details" panel — `.env` is git-ignored, so it's never committed to this public repo),
+or as Apache environment variables if you'd rather not use a file. Those temporary
+credentials expire and rotate periodically — if uploads that were working suddenly
+fail, refresh them and, if using `.env`, no restart is needed.
+
+This matters once there's more than one EC2 instance behind the ALB — a photo saved to
+local disk only exists on whichever instance handled the upload, so any other instance
+shows a broken image for it. **What's still on you**: creating the bucket + a public-read
+bucket policy (or CloudFront), getting one of the two credential methods above working,
+and setting `AWS_S3_BUCKET`/`AWS_S3_REGION`. The signing logic is verified against AWS's
+own SigV4 test vectors, the local-disk path is tested live end-to-end, and a signed
+request with fake credentials was confirmed to reach a real S3 endpoint and get a
+structured `403` back (not a crash/hang) — but a full successful round-trip against a
+real bucket with real credentials hasn't been tested, since there wasn't one available
+here.
 
 Notes for EC2 deployment:
 - `uploads/` needs to be writable by the web server user: `chmod 775 uploads` after
@@ -151,6 +178,10 @@ Notes for EC2 deployment:
   post_max_size = 12M
   ```
   then restart the web server.
+- Point your ALB target group's health check at `healthz.php` — it returns `200` only
+  if the database connection actually succeeds (`500` otherwise), so a target that
+  can't reach RDS gets correctly pulled out of rotation instead of still receiving
+  traffic.
 
 ## Phase 2: running it on a single EC2 instance
 
@@ -174,11 +205,11 @@ Notes for EC2 deployment:
 5. **Copy this folder onto the instance** (run from your local machine, not the SSH
    session):
    ```
-   scp -i your-key.pem -r ./event-ticketing ec2-user@<public-ipv4>:/tmp/
+   scp -i your-key.pem -r ./sports-facility-booking ec2-user@<public-ipv4>:/tmp/
    ```
    Then on the instance:
    ```
-   sudo cp -r /tmp/event-ticketing/* /var/www/html/
+   sudo cp -r /tmp/sports-facility-booking/* /var/www/html/
    sudo chown -R apache:apache /var/www/html
    sudo chmod -R 775 /var/www/html/uploads
    ```
@@ -187,9 +218,13 @@ Notes for EC2 deployment:
    sudo mysql_secure_installation
    mysql -u root -p < schema.sql
    ```
-7. **Point the app at the database**: edit `config.php` (or export
-   `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` in Apache's environment, e.g. via a
-   `SetEnv` directive in `/etc/httpd/conf.d/`) to match your MySQL credentials.
+7. **Point the app at the database**: copy `.env.example` to `.env` and set
+   `DB_HOST`/`DB_USER`/`DB_PASS`/`DB_NAME` there to match your MySQL
+   credentials (`config.php` loads `.env` automatically - see the loader at
+   the top of the file; `.env` is git-ignored so it's never committed). Or,
+   if you'd rather not use a file, edit `config.php` directly, or export the
+   same names as Apache environment variables via a `SetEnv` directive in
+   `/etc/httpd/conf.d/`.
 8. **Test it**: open `http://<public-ipv4>/` in a browser.
 
 ## Phase 3: moving the database to RDS
@@ -218,14 +253,14 @@ demonstration. If you'd rather keep things simpler, you can delete `auth.php`,
 
 ## Extending for extra marks
 
-This app covers CRUD, accounts, a baseline admin panel, live ticket inventory, and a
-simulated checkout. Ideas for going further:
-- An admin dashboard: stats tiles (total revenue, tickets sold, upcoming events)
-  plus graphs of revenue and tickets sold over time, broken down per event, so an
-  admin can see which events are selling best.
-- An order status workflow (pending/paid/refunded) instead of instant-confirm.
+This app already covers CRUD, accounts, a full admin panel, a schedule grid,
+closures, image uploads, and notifications. Ideas for going further:
+- An admin dashboard: stats tiles (facility count, bookings today, total bookings)
+  plus a graph of bookings over time (bookings per day/week, and per facility) so an
+  admin can spot which sports/courts are busiest.
+- A booking status workflow (pending/confirmed/done) instead of instant-confirm.
 - Live chat between a user and admin (not a chatbot — a real-time message thread) for support questions, e.g. a `messages` table keyed by conversation with sender/recipient, polled or long-polled for new messages.
-- Cap how many tickets a single account can buy per event (the time-based equivalent of "max 2 hours per account" for a slot-booking app — here it's a max-quantity-per-account limit instead), so one account can't buy up an entire event's inventory.
-- Wire event photo uploads to Amazon S3 (see above).
+- Cap how much time a single account can book per day (e.g. no more than 2 hours' worth of time slots across all courts/facilities combined), so one account can't hog every slot.
+- Wire facility photo uploads to Amazon S3 (see above).
 - A REST/JSON API layer for load testing tools (Apache Bench, JMeter, Locust) to hit
   directly.
