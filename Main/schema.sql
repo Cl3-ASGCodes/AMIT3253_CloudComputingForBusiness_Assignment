@@ -36,8 +36,8 @@ CREATE TABLE facilities (
   location VARCHAR(100) NOT NULL,
   capacity INT NOT NULL DEFAULT 1,
   description TEXT NULL,
-  materials TEXT NULL,
-  rules TEXT NULL,
+  flexible BOOLEAN DEFAULT FALSE,
+  features TEXT NULL,
   image_url VARCHAR(500) NULL,
   layout_url VARCHAR(500) NULL
 );
@@ -53,33 +53,35 @@ CREATE TABLE courts (
   FOREIGN KEY (facility_id) REFERENCES facilities(id)
 );
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules, layout_url) VALUES
-('Badminton', 'Sports Complex, Level 1', 4,
- 'Regulation-size indoor badminton courts with wooden flooring, ideal for doubles matches.',
- 'Sprung wooden flooring with a matte vinyl overlay for grip and shock absorption. Court markings follow BWF regulation dimensions, with aluminium-framed nets and LED overhead lighting rated for indoor racket sports.',
- 'Non-marking, rubber-soled sports shoes are mandatory on the court.\nNo food or drinks are allowed inside the court area.\nMaximum of 4 players per booked session (doubles play).\nBring your own racket and shuttlecocks; none are provided on-site.',
- '/uploads/sample-badminton-layout.jpg');
+INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
+('Dewan Tunku Abdul Rahman', 'DTAR', 1000,
+ 'Our premier flagship venue designed for grand-scale events.',
+ TRUE,
+ '1,000+ Guest Capacity\nLED Screen & PA System\nDedicated VIP Holding Room\nIdeal for Concerts & Graduations');
 
-SET @badminton_id = LAST_INSERT_ID();
+SET @dtar_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES
-(@badminton_id, 'Court A'),
-(@badminton_id, 'Court B');
+(@dtar_id, 'Main Hall');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Futsal', 'Sports Complex, Ground Floor', 10,
- 'A full-size indoor futsal court with proper goals and rebound boards, suitable for 5-a-side matches.',
- 'Polypropylene synthetic turf over a shock-pad underlay, engineered for indoor ball control and reduced joint impact. Goals are aluminium-framed with weighted bases; perimeter rebound boards are impact-resistant polycarbonate.',
- 'Flat-soled futsal or indoor court shoes only - no studs or turf trainers.\nMaximum of 10 players per booked session (5-a-side).\nNo food or drinks on the playing surface.\nShin guards are strongly recommended but not compulsory.');
-SET @futsal_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@futsal_id, 'Court 1');
+INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
+('Function Hall', 'Arena, \n1st, 2nd and 5th Floor', 200,
+ 'Variety layout of halls to accommodate up to 200+ guests for gatherings and product showcases.',
+ TRUE,
+ 'Portable Sound Systems & TV Display\nLarge Windows with KL view\nFlexible Seating Arrangements');
+SET @func_hall_id = LAST_INSERT_ID();
+INSERT INTO courts (facility_id, name) VALUES 
+(@func_hall_id, 'TA-113'),
+(@func_hall_id, 'TA-205'),
+(@func_hall_id, 'TA-501'),
+(@func_hall_id, 'TA-505');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Squash', 'Sports Complex, Level 2', 2,
- 'A glass-back squash court for singles play, freshly resurfaced this year.',
- 'Four-wall glass-back court built to WSF standard dimensions, with a maple hardwood floor and tempered safety glass rear wall for spectator visibility.',
- 'Protective eyewear is strongly recommended for all players.\nNon-marking court shoes are mandatory.\nMaximum of 2 players per booked session (singles play).\nNo food or drinks inside the court.');
-SET @squash_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@squash_id, 'Court 1');
+INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
+('Multi-Purpose Hall', 'Arena, Level 2', 300,
+ 'A unique double-deck facility that offers massive vertical clearance and flexible floor plans for event hosting.',
+ TRUE,
+ 'LED Screen, PA System and Portable Stage\nHigh Ceiling Architecture\nIdeal for Exhibitions, Gathering and Sports Events');
+SET @multi_purpose_id = LAST_INSERT_ID();
+INSERT INTO courts (facility_id, name) VALUES (@multi_purpose_id, 'Court 1');
 
 INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
 ('Basketball', 'Sports Complex, Level 1', 10,
@@ -105,69 +107,7 @@ INSERT INTO facilities (name, location, capacity, description, materials, rules)
 SET @swimming_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES (@swimming_id, 'Main Pool');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Gym', 'Sports Complex, Level 3', 20,
- 'A fully-equipped gym with free weights, resistance machines and cardio equipment.',
- 'Rubberised shock-absorbent flooring throughout. Equipment includes a full free-weight rack, cable machines, and a cardio row with treadmills, ellipticals and stationary bikes.',
- 'Proper athletic attire and closed-toe shoes are required.\nWipe down equipment after use.\nRe-rack weights when finished.\nMaximum of 20 members per booked session.\nBring your own towel.');
-SET @gym_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@gym_id, 'Main Floor');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Tennis', 'Sports Complex, Outdoor Courts', 4,
- 'An outdoor hard-court tennis court with floodlighting for evening play.',
- 'Acrylic-coated hard court surface over an asphalt base, with regulation-height net posts and floodlights rated for evening matches.',
- 'Non-marking tennis shoes are mandatory.\nMaximum of 4 players per booked session (doubles play).\nBring your own racket and balls.\nPlay may be suspended during heavy rain.');
-SET @tennis_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@tennis_id, 'Court 1');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Table Tennis', 'Sports Complex, Level 2', 4,
- 'A dedicated indoor room with table tennis tables for casual or competitive play.',
- 'Vinyl sports flooring with ITTF-approved table tennis tables and adjustable nets.',
- 'Indoor court shoes are recommended.\nMaximum of 4 players per booked session.\nBring your own paddles and balls.\nPlease push tables back against the wall after use.');
-SET @tabletennis_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES
-(@tabletennis_id, 'Table 1'),
-(@tabletennis_id, 'Table 2');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Yoga & Aerobics', 'Sports Complex, Level 3', 15,
- 'A mirrored studio for yoga, aerobics and group fitness classes, with mats and equipment on hand.',
- 'Sprung floating floor with a cushioned vinyl finish to reduce joint impact, a full-length mirrored wall, and a built-in sound system.',
- 'Socks or bare feet only - no outdoor shoes on the studio floor.\nMaximum of 15 participants per booked session.\nMats and blocks are provided; please wipe down and return after use.\nNo food or drinks inside the studio.');
-SET @yoga_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@yoga_id, 'Studio 1');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Climbing', 'Sports Complex, Ground Floor', 6,
- 'An indoor bouldering and top-rope climbing wall for beginners through advanced climbers.',
- 'A 12m plywood climbing wall with resin-textured holds, a shock-absorbent bouldering mat base, and auto-belay top-rope stations.',
- 'Climbing shoes and a harness are mandatory for top-rope routes.\nMaximum of 6 climbers per booked session.\nA spotter is required for all bouldering attempts.\nNo climbing above marked height limits without top-rope gear.');
-SET @climbing_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@climbing_id, 'Wall 1');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Football', 'Sports Complex, Outdoor Grounds', 22,
- 'A full-size outdoor football field with natural turf, suitable for 11-a-side matches.',
- 'Natural turf pitch over a sand-based drainage system, with regulation-size goals and perimeter fencing.',
- 'Studded football boots are recommended on grass.\nMaximum of 22 players per booked session (11-a-side).\nNo glass containers on the field.\nField may be closed after heavy rain to protect the turf.');
-SET @football_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@football_id, 'Field 1');
-
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Bowling', 'Sports Complex, Level 1', 8,
- 'A 4-lane indoor bowling alley with automatic scoring and pin reset.',
- 'Synthetic wood-grain lane surfaces with automatic pinsetters and electronic scoring displays.',
- 'Bowling shoes are mandatory and available for rental at the counter.\nMaximum of 8 bowlers per booked session (2 per lane).\nNo food or drinks on the lane approach.\nPlease keep hands dry - no unauthorised substances on the ball.');
-SET @bowling_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES
-(@bowling_id, 'Lane 1'),
-(@bowling_id, 'Lane 2'),
-(@bowling_id, 'Lane 3'),
-(@bowling_id, 'Lane 4');
-
-UPDATE facilities SET image_url = '/uploads/sample-badminton-photo.jpg' WHERE name = 'Badminton';
+UPDATE facilities SET image_url = '/uploads/Event Halls/DTAR_HALL_A.jpg' WHERE name = 'Dewan Tunku Abdul Rahman';
 UPDATE facilities SET image_url = '/uploads/sample-futsal.jpg' WHERE name = 'Futsal';
 UPDATE facilities SET image_url = '/uploads/sample-squash.jpg' WHERE name = 'Squash';
 UPDATE facilities SET image_url = '/uploads/sample-basketball.jpg' WHERE name = 'Basketball';
