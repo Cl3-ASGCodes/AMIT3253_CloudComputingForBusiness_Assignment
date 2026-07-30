@@ -38,7 +38,6 @@ CREATE TABLE facilities (
   description TEXT NULL,
   flexible BOOLEAN DEFAULT FALSE,
   features TEXT NULL,
-  image_url VARCHAR(500) NULL,
   layout_url VARCHAR(500) NULL
 );
 
@@ -51,6 +50,16 @@ CREATE TABLE courts (
   name VARCHAR(50) NOT NULL,
   location VARCHAR(100) NULL,
   FOREIGN KEY (facility_id) REFERENCES facilities(id)
+);
+
+CREATE TABLE facility_images (
+  id INT AUTO_INCREMENT PRIMATY_KEY,
+  description TEXT NULL,
+  image_url VARCHAR(500) NOT NULL,
+  facility_id INT NOT NULL,
+  court_id INT NULL,
+  FOREIGN KEY (facility_id) REFERENCES court(facility_id),
+  FOREIGN KEY (court_id) REFERENCES court(id)
 );
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
@@ -83,27 +92,26 @@ INSERT INTO facilities (name, location, capacity, description, flexible, feature
 SET @multi_purpose_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES (@multi_purpose_id, 'Court 1');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Basketball', 'Sports Complex, Level 1', 10,
- 'A full indoor basketball court with adjustable hoops, suitable for 5-a-side games or shooting practice.',
- 'Maple hardwood sprung flooring with a polyurethane coating for grip and consistent ball bounce. Height-adjustable breakaway rims with tempered glass backboards, and LED lighting rated for indoor ball sports.',
- 'Non-marking indoor court shoes are mandatory.\nNo food or drinks on the court.\nMaximum of 10 players per booked session.\nHanging or swinging on the rim is strictly prohibited.');
-SET @basketball_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@basketball_id, 'Court 1');
+INSERT INTO facilities (name, location, capacity, description, features) VALUES
+('RED BRICKS THEATRE', 'Arena, Level 5', 352,
+ 'A premium performance auditorium that offers maximum comfort for attendees.',
+ '352 Sofa Seating\nLED Screen, PA System, Lighting and Portable Stage\nHolding Areas for Performers and Guests\nPerfect for Movie Screenings, Talks and Acoustic Performances');
+SET @RB_Theatre_id = LAST_INSERT_ID();
+INSERT INTO courts (facility_id, name) VALUES (@RB_Theatr_id, 'Court 1');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Volleyball', 'Sports Complex, Level 1', 12,
- 'An indoor volleyball court with a regulation-height net, suitable for 6-a-side matches.',
- 'Sprung wooden flooring with a textured vinyl finish for traction. Net posts are padded aluminium with a crank-adjustable regulation-height net.',
- 'Non-marking sports shoes are mandatory.\nMaximum of 12 players per booked session.\nNo food or drinks inside the court.\nPlease reset the net height if you adjusted it.');
+INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
+('SMALL SCALE FUNCTION ROOM', 'Club House, Level 2', 150,
+ 'Accommodates 150+ guests featuring a pre-function area for networking and catering.',
+ TRUE,
+ 'LED Screen, PA System and Stage\nFlexible Floor Plan Arrangements\nIdeal for Seminars and Workshops');
 SET @volleyball_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES (@volleyball_id, 'Court 1');
 
-INSERT INTO facilities (name, location, capacity, description, materials, rules) VALUES
-('Swimming', 'Sports Complex, Ground Floor', 30,
- 'An 8-lane 25m indoor swimming pool with a dedicated shallow end for beginners.',
- 'Reinforced concrete shell with a ceramic tile lining, chlorine-filtered and temperature-controlled to 27-29°C. Lane ropes are anti-wave polypropylene.',
- 'Proper swimwear is mandatory; no cotton clothing in the pool.\nShower before entering the pool.\nMaximum of 30 swimmers per booked session.\nNo diving in the shallow end.\nChildren under 12 must be accompanied by an adult.');
+INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
+('Academic & training facilities', 'Assorted Areas', 400,
+ 'Our academic spaces are designed for focus and engagement, suitable for everthing from small-group sessions to large examinations.',
+ TRUE,
+ 'Capacity Option: 20 - 400 Pax\nBuilt in Projector Screen and PA System\nIdeal for Academic Seminars, Classes and Formal Examinations');
 SET @swimming_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES (@swimming_id, 'Main Pool');
 
@@ -113,13 +121,6 @@ UPDATE facilities SET image_url = '/uploads/sample-squash.jpg' WHERE name = 'Squ
 UPDATE facilities SET image_url = '/uploads/sample-basketball.jpg' WHERE name = 'Basketball';
 UPDATE facilities SET image_url = '/uploads/sample-volleyball.jpg' WHERE name = 'Volleyball';
 UPDATE facilities SET image_url = '/uploads/sample-swimming.jpg' WHERE name = 'Swimming';
-UPDATE facilities SET image_url = '/uploads/sample-gym.jpg' WHERE name = 'Gym';
-UPDATE facilities SET image_url = '/uploads/sample-tennis.jpg' WHERE name = 'Tennis';
-UPDATE facilities SET image_url = '/uploads/sample-tabletennis.jpg' WHERE name = 'Table Tennis';
-UPDATE facilities SET image_url = '/uploads/sample-yoga.jpg' WHERE name = 'Yoga & Aerobics';
-UPDATE facilities SET image_url = '/uploads/sample-climbing.jpg' WHERE name = 'Climbing';
-UPDATE facilities SET image_url = '/uploads/sample-football.jpg' WHERE name = 'Football';
-UPDATE facilities SET image_url = '/uploads/sample-bowling.jpg' WHERE name = 'Bowling';
 
 CREATE TABLE time_slots (
   id INT AUTO_INCREMENT PRIMARY KEY,

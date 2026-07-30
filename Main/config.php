@@ -66,7 +66,7 @@ date_default_timezone_set('Asia/Kuala_Lumpur');
 //   $pass = 'your-rds-master-password';
 // ============================================================================
 $host   = getenv('DB_HOST') ?: 'localhost';
-$user   = getenv('DB_USER') ?: 'admin_user';
+$user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') ?: '';
 $dbname = getenv('DB_NAME') ?: 'eventhalls_db';
 
