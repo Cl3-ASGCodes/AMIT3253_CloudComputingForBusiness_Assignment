@@ -22,38 +22,27 @@ class DbSessionHandler implements SessionHandlerInterface {
 
     public function read($id): string {
         $stmt = $this->conn->prepare('SELECT data FROM sessions WHERE id = ?');
-        $stmt->bind_param('s', $id);
-        $stmt->execute();
-        $row = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        return $row ? $row['data'] : '';
+        $stmt->execute([$id]);
+        $row = $stmt->fetch();
+        return $row ? $row->data : '';
     }
 
     public function write($id, $data): bool {
         $now = time();
         $stmt = $this->conn->prepare('INSERT INTO sessions (id, data, last_activity) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE data = VALUES(data), last_activity = VALUES(last_activity)');
-        $stmt->bind_param('ssi', $id, $data, $now);
-        $ok = $stmt->execute();
-        $stmt->close();
-        return $ok;
+        return $stmt->execute([$id, $data, $now]);
     }
 
     public function destroy($id): bool {
         $stmt = $this->conn->prepare('DELETE FROM sessions WHERE id = ?');
-        $stmt->bind_param('s', $id);
-        $ok = $stmt->execute();
-        $stmt->close();
-        return $ok;
+        return $stmt->execute([$id]);
     }
 
     public function gc($maxLifetime): int|false {
         $threshold = time() - $maxLifetime;
         $stmt = $this->conn->prepare('DELETE FROM sessions WHERE last_activity < ?');
-        $stmt->bind_param('i', $threshold);
-        $stmt->execute();
-        $count = $stmt->affected_rows;
-        $stmt->close();
-        return $count;
+        $stmt->execute([$threshold]);
+        return $stmt->rowCount();
     }
 }
 
@@ -84,10 +73,8 @@ function require_login() {
     // every write below fail a foreign-key check silently.
     global $conn;
     $stmt = $conn->prepare('SELECT id FROM users WHERE id = ?');
-    $stmt->bind_param('i', $_SESSION['user_id']);
-    $stmt->execute();
-    $exists = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $stmt->execute([$_SESSION['user_id']]);
+    $exists = $stmt->fetch();
 
     if (!$exists) {
         session_unset();

@@ -2,13 +2,13 @@
 <footer class="site-footer">
 <div class="footer-grid">
 <div class="footer-brand">
-<div class="footer-brand-name">Campus Sports Facility Booking</div>
-<p>Book badminton courts, futsal, swimming and more &mdash; free for all students and staff.</p>
+<div class="footer-brand-name">TARC Event Venue Booking</div>
+<p>Reserve event halls, auditoriums, function rooms and more &mdash; free for all students and staff.</p>
 </div>
 <div class="footer-links">
 <h4>Explore</h4>
 <a href="index.php">Home</a>
-<a href="facilities.php">Facilities</a>
+<a href="facilities.php">Venues</a>
 <a href="schedule.php">Schedule</a>
 <a href="testimonials.php">Testimonials</a>
 </div>
@@ -24,14 +24,37 @@
 </div>
 </div>
 <div class="footer-bottom">
-<p>&copy; <?= date('Y') ?> Campus Sports Facility Booking &middot; AMIT3253 Sample Project</p>
+<p>&copy; <?= date('Y') ?> TARC Event Venue Booking &middot; AMIT3253 Sample Project</p>
 </div>
 </footer>
+
 <div id="lightbox" class="lightbox-overlay">
 <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
 <img id="lightbox-img" src="" alt="">
 </div>
+
 <script>
+// Mobile Navigation Drawer Toggle Handler
+(function () {
+    var toggleBtn = document.querySelector('.mobile-nav-toggle');
+    var navLinks = document.querySelector('.nav-links');
+    if (!toggleBtn || !navLinks) return;
+
+    toggleBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var open = navLinks.classList.toggle('mobile-open');
+        toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!navLinks.contains(e.target) && !toggleBtn.contains(e.target)) {
+            navLinks.classList.remove('mobile-open');
+            toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+})();
+
+// Light/Dark Theme Engine
 (function () {
     var btn = document.getElementById('theme-toggle');
     if (!btn) return;
@@ -55,8 +78,8 @@
 
     updateIcon();
 })();
-</script>
-<script>
+
+// User Menu Dropdown Handler
 (function () {
     var trigger = document.querySelector('.user-menu-trigger');
     var dropdown = document.querySelector('.user-menu-dropdown');
@@ -73,18 +96,18 @@
         trigger.setAttribute('aria-expanded', 'false');
     });
 })();
-</script>
-<script>
+
+// Lightbox Component Handler
 (function () {
     var lightbox = document.getElementById('lightbox');
     var lightboxImg = document.getElementById('lightbox-img');
     if (!lightbox || !lightboxImg) return;
 
     document.addEventListener('click', function (e) {
-        var img = e.target.closest('.card-thumb, .table-thumb');
+        var img = e.target.closest('.card-thumb, .table-thumb, .slide-frame img');
         if (img) {
             lightboxImg.src = img.src;
-            lightboxImg.alt = img.alt;
+            lightboxImg.alt = img.alt || 'Venue Image';
             lightbox.classList.add('open');
         }
     });
@@ -94,8 +117,8 @@
         lightboxImg.src = '';
     });
 })();
-</script>
-<script>
+
+// Password Visibility Toggle Handler
 (function () {
     var EYE_OPEN = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>';
     var EYE_CLOSED = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.06 21.06 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.13 21.13 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';

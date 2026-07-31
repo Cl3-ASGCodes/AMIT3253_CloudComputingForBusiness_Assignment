@@ -1,40 +1,43 @@
 <?php
 require 'config.php';
 require 'auth.php';
+require 'helpers.php';
 
 $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name    = trim($_POST['name']);
-    $email   = trim($_POST['email']);
-    $subject = trim($_POST['subject']);
-    $message = trim($_POST['message']);
+    $name    = trim($_POST['name'] ?? '');
+    $email   = trim($_POST['email'] ?? '');
+    $subject = trim($_POST['subject'] ?? '');
+    $message = trim($_POST['message'] ?? '');
 
     if ($name === '' || $email === '' || $subject === '' || $message === '') {
         $error = 'Please fill in all fields.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'Please enter a valid email address.';
     } else {
-        $stmt = $conn->prepare('INSERT INTO contact_messages (name, email, subject, message) VALUES (?, ?, ?, ?)');
-        $stmt->bind_param('ssss', $name, $email, $subject, $message);
-        if ($stmt->execute()) {
-            $stmt->close();
+        try {
+            db_insert('contact_messages', [
+                'name'    => $name,
+                'email'   => $email,
+                'subject' => $subject,
+                'message' => $message
+            ]);
             $success = "Thanks for reaching out — we'll get back to you soon.";
-        } else {
+        } catch (Throwable $e) {
             $error = 'Could not send your message. Please try again.';
-            $stmt->close();
         }
     }
 }
 
 $pageTitle = 'Contact Us';
-$pageDescription = 'Get in touch with the campus sports facility booking team - location, contact number, operating hours and a message form.';
+$pageDescription = 'Get in touch with the TARC event venue booking team - location, contact number, operating hours and a message form.';
 require 'partials/header.php';
 ?>
 <div class="page-header">
 <h1>Contact Us</h1>
-<p>Have a question about bookings, facilities, or something else? Get in touch.</p>
+<p>Have a question about venue bookings, available halls, or something else? Get in touch.</p>
 </div>
 
 <section>
@@ -42,12 +45,12 @@ require 'partials/header.php';
 <div class="card">
 <div class="card-icon">&#128205;</div>
 <h3>Location</h3>
-<p>TAR UMT Sports Complex<br>Jalan Genting Kelang, Setapak<br>53300 Kuala Lumpur</p>
+<p>TAR UMT Event Management Centre<br>Jalan Genting Kelang, Setapak<br>53300 Kuala Lumpur</p>
 </div>
 <div class="card">
 <div class="card-icon">&#128222;</div>
 <h3>Contact</h3>
-<p>+60 3-4145 0450<br>sportscentre@tarumt.edu.my</p>
+<p>+60 3-4145 0450<br>events@tarumt.edu.my</p>
 </div>
 <div class="card">
 <div class="card-icon">&#128337;</div>

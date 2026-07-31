@@ -3,64 +3,133 @@ require 'config.php';
 require 'auth.php';
 require 'helpers.php';
 
-$facilities = $conn->query('SELECT * FROM facilities ORDER BY name')->fetch_all(MYSQLI_ASSOC);
+// Fetch all event venues
+$facilities = db_fetch_all('SELECT * FROM facilities ORDER BY capacity DESC');
 
 $totalFacilities = count($facilities);
-$totalCourts     = $conn->query('SELECT COUNT(*) AS c FROM courts')->fetch_assoc()['c'];
+$totalHalls      = db_count('courts');
 $totalCapacity   = array_sum(array_column($facilities, 'capacity'));
 
-$pageTitle = 'Our Facilities';
-$pageDescription = 'A detailed look at each campus sports facility - construction, materials, capacity and house rules.';
+$pageTitle = 'Our Event Venues';
+$pageDescription = 'A detailed look at each campus event venue - capacity, layouts, features, and venue guidelines.';
 require 'partials/header.php';
 ?>
+
+<style>
+.slideshow-container {
+    position: relative;
+    max-width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    margin-bottom: 1rem;
+}
+.slide-frame {
+    display: none;
+    position: relative;
+    width: 100%;
+    height: 320px;
+}
+.slide-frame.active {
+    display: block;
+}
+.slide-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.slide-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 0.88rem;
+}
+.slide-prev, .slide-next {
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 10px 14px;
+    color: white;
+    font-weight: bold;
+    font-size: 16px;
+    transition: 0.2s ease;
+    border-radius: 0 3px 3px 0;
+    user-select: none;
+    background-color: rgba(0,0,0,0.4);
+    border: none;
+}
+.slide-next {
+    right: 0;
+    border-radius: 3px 0 0 3px;
+}
+.slide-prev:hover, .slide-next:hover {
+    background-color: rgba(0,0,0,0.8);
+}
+</style>
+
 <div class="page-header">
-<h1>Our Facilities</h1>
-<p>A closer look at what's on offer — construction, materials, capacity, and the house
-rules that keep each venue safe and well maintained.</p>
+<h1>Our Event Venues</h1>
+<p>A closer look at our premier event spaces — capacity, layout configurations, features, and the house rules that ensure seamless hosting.</p>
 </div>
 
 <section>
 <div class="card-grid">
-<div class="stat-tile"><div class="stat-value"><?= (int)$totalFacilities ?></div><div class="stat-label">Facilities</div></div>
-<div class="stat-tile"><div class="stat-value"><?= (int)$totalCourts ?></div><div class="stat-label">Total courts</div></div>
-<div class="stat-tile"><div class="stat-value"><?= (int)$totalCapacity ?></div><div class="stat-label">Combined capacity</div></div>
+<div class="stat-tile"><div class="stat-value"><?= (int)$totalFacilities ?></div><div class="stat-label">Event Venues</div></div>
+<div class="stat-tile"><div class="stat-value"><?= (int)$totalHalls ?></div><div class="stat-label">Total Halls/Spaces</div></div>
+<div class="stat-tile"><div class="stat-value"><?= (int)$totalCapacity ?></div><div class="stat-label">Combined Capacity</div></div>
 </div>
 </section>
 
 <?php foreach ($facilities as $f): ?>
 <?php
-$courtsStmt = $conn->prepare('SELECT name FROM courts WHERE facility_id = ? ORDER BY name');
-$courtsStmt->bind_param('i', $f['id']);
-$courtsStmt->execute();
-$facilityCourts = array_column($courtsStmt->get_result()->fetch_all(MYSQLI_ASSOC), 'name');
-$courtsStmt->close();
+$halls = db_fetch_all('SELECT name FROM courts WHERE facility_id = ? ORDER BY name', [$f->id]);
+$hallNames = array_map(fn($h) => $h->name, $halls);
+
+$images = db_fetch_all('SELECT image_url, description FROM facility_images WHERE facility_id = ? ORDER BY id', [$f->id]);
 ?>
 <section class="facility-profile">
 <div class="facility-profile-header">
-<img class="card-thumb" src="<?= htmlspecialchars(facility_image_url($f)) ?>" alt="<?= htmlspecialchars($f['name']) ?>" loading="lazy">
 <div>
-<h3><?= htmlspecialchars($f['name']) ?></h3>
-<p>&#128205; <?= htmlspecialchars($f['location']) ?> &middot; Capacity: <?= (int)$f['capacity'] ?> per session</p>
-<p><?= count($facilityCourts) ?> court<?= count($facilityCourts) === 1 ? '' : 's' ?> available: <?= htmlspecialchars(implode(', ', $facilityCourts)) ?></p>
+<h3><?= htmlspecialchars($f->name) ?></h3>
+<p>&#128205; <?= htmlspecialchars($f->location) ?> &middot; Capacity: Up to <?= (int)$f->capacity ?> guests</p>
+<p><?= count($hallNames) ?> hall/space<?= count($hallNames) === 1 ? '' : 's' ?> available: <?= htmlspecialchars(implode(', ', $hallNames)) ?></p>
 </div>
 </div>
 
-<?php if (!empty($f['description'])): ?>
-<p><?= htmlspecialchars($f['description']) ?></p>
+<?php if (!empty($images)): ?>
+<div class="slideshow-container" data-slideshow-id="<?= (int)$f->id ?>">
+    <?php foreach ($images as $index => $img): ?>
+    <div class="slide-frame <?= $index === 0 ? 'active' : '' ?>">
+        <img src="<?= htmlspecialchars($img->image_url) ?>" alt="<?= htmlspecialchars($img->description ?? $f->name) ?>" loading="lazy">
+        <?php if (!empty($img->description)): ?>
+        <div class="slide-caption"><?= htmlspecialchars($img->description) ?></div>
+        <?php endif; ?>
+    </div>
+    <?php endforeach; ?>
+
+    <?php if (count($images) > 1): ?>
+    <button type="button" class="slide-prev" onclick="moveSlide(<?= (int)$f->id ?>, -1)">&#10094;</button>
+    <button type="button" class="slide-next" onclick="moveSlide(<?= (int)$f->id ?>, 1)">&#10095;</button>
+    <?php endif; ?>
+</div>
 <?php endif; ?>
 
-<?php if (!empty($f['materials'])): ?>
-<h4>Construction &amp; Materials</h4>
-<p><?= htmlspecialchars($f['materials']) ?></p>
+<?php if (!empty($f->description)): ?>
+<p><?= htmlspecialchars($f->description) ?></p>
 <?php endif; ?>
 
-<?php if (!empty($f['rules'])): ?>
-<h4>House Rules &amp; Regulations</h4>
+<?php if (!empty($f->features)): ?>
+<h4>Key Venue Features &amp; Equipment</h4>
 <ul class="policy-list">
-<?php foreach (explode("\n", $f['rules']) as $rule): ?>
-<?php $rule = trim($rule); ?>
-<?php if ($rule !== ''): ?>
-<li><?= htmlspecialchars($rule) ?></li>
+<?php foreach (explode("\n", $f->features) as $feature): ?>
+<?php $feature = trim($feature); ?>
+<?php if ($feature !== ''): ?>
+<li><?= htmlspecialchars($feature) ?></li>
 <?php endif; ?>
 <?php endforeach; ?>
 </ul>
@@ -69,32 +138,56 @@ $courtsStmt->close();
 <?php endforeach; ?>
 
 <section>
-<h2>General Booking Guidelines</h2>
+<h2>General Event Booking Guidelines</h2>
 <ul class="policy-list">
-<li>One booking per user per court, date and time slot — first come, first served.</li>
-<li>Plans changed? Cancel anytime from My Bookings on the homepage to free the slot for someone else.</li>
-<li>Facilities are occasionally closed for maintenance — closures are always shown on the Schedule page with a reason.</li>
-<li>Please arrive on time and vacate promptly at the end of your slot so the next booking isn't delayed.</li>
+<li>One reservation per account per hall space and time slot — allocations operate on a first-come, first-served basis.</li>
+<li>Need to modify arrangements? Cancel or edit anytime via My Bookings on the homepage to release the slot.</li>
+<li>Venues may be temporarily unavailable for administrative maintenance — active closures are always detailed on the Schedule page.</li>
+<li>Ensure setup and tear-down adhere to your reserved window to accommodate proceeding venue allocations.</li>
 </ul>
 </section>
 
 <section>
 <h2>Frequently Asked Questions</h2>
 <details class="faq-item">
-<summary>Do I need to pay to book a facility?</summary>
-<p>No. Booking is completely free for all students and staff — just log in and reserve a slot.</p>
+<summary>Are there costs associated with reserving an event venue?</summary>
+<p>No. Event venue bookings are available free of charge for university operations, students, and staff — log in to check slot availability.</p>
 </details>
 <details class="faq-item">
-<summary>Can I cancel or change my booking?</summary>
-<p>Yes. Go to My Bookings on the homepage to edit the date/time or delete a booking entirely.</p>
+<summary>How can I cancel or adjust an existing venue reservation?</summary>
+<p>Navigate to My Bookings on the homepage to update the date/time slot or remove the booking entirely.</p>
 </details>
 <details class="faq-item">
-<summary>What happens if a facility is closed for maintenance?</summary>
-<p>Closed dates and time slots show as "Closed" with a reason on the Schedule page, and you won't be able to book them.</p>
+<summary>How are venue maintenance closures handled?</summary>
+<p>Unavailable dates and time slots display as "Closed" alongside the reason on the Schedule page, blocking incoming reservations.</p>
 </details>
 <details class="faq-item">
-<summary>Is there a limit to how many facilities I can book?</summary>
-<p>No fixed limit — book as many different slots as you need, as long as they don't overlap with existing bookings.</p>
+<summary>Is there a cap on the number of event spaces I can reserve?</summary>
+<p>There is no rigid cap — reserve as many distinct spaces or time slots as required, provided slots do not overlap.</p>
 </details>
 </section>
+
+<script>
+function moveSlide(containerId, direction) {
+    var container = document.querySelector('.slideshow-container[data-slideshow-id="' + containerId + '"]');
+    if (!container) return;
+    var slides = container.querySelectorAll('.slide-frame');
+    if (slides.length <= 1) return;
+
+    var currentIndex = -1;
+    for (var i = 0; i < slides.length; i++) {
+        if (slides[i].classList.contains('active')) {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    if (currentIndex !== -1) {
+        slides[currentIndex].classList.remove('active');
+        var newIndex = (currentIndex + direction + slides.length) % slides.length;
+        slides[newIndex].classList.add('active');
+    }
+}
+</script>
+
 <?php require 'partials/footer.php'; ?>

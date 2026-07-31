@@ -1,30 +1,32 @@
 <?php
 require 'config.php';
 require 'auth.php';
+require 'helpers.php';
 
-$bookingCount = $conn->query('SELECT COUNT(*) AS c FROM bookings')->fetch_assoc()['c'];
-$memberCount = $conn->query('SELECT COUNT(*) AS c 
-                             FROM users u
-                             JOIN login l ON u.login_id = l.id
-                             WHERE l.user_type != \'admin\'
-                            ')->fetch_assoc()['c'];
+$bookingCount = db_count('bookings');
+$memberCount  = (int)db_fetch_value("
+    SELECT COUNT(*) 
+    FROM users u
+    JOIN login l ON u.login_id = l.id
+    WHERE l.user_type != 'admin'
+");
 
 $pageTitle = 'About Us';
 require 'partials/header.php';
 ?>
 <div class="about-hero">
-<div class="about-hero-icons">&#127992; &#9917; &#127934; &#127947;</div>
-<h1>Campus Sports Facility Booking</h1>
+<div class="about-hero-icons">&#127917; &#127908; &#127979; &#127881;</div>
+<h1>TARC Event Venue Booking</h1>
 <p>Serving the TAR UMT community since 2010</p>
 </div>
 
 <section>
 <h2>Our Story</h2>
-<p>Founded in 2010, the TAR UMT Sports Complex has grown from a single badminton hall
-into a full multi-sport facility serving thousands of students and staff every year.
-What started as a paper sign-up sheet at the front counter is now this online booking
+<p>Founded in 2010, TAR UMT Event Venues have grown from a single function hall
+into a comprehensive collection of premier event spaces serving thousands of students, staff, and campus event organizers every year.
+What started as a manual paper reservation sheet at the administration office is now this online booking
 platform — built to replace manual queues with a simple, transparent system so anyone
-on campus can check what's free and reserve a slot in under a minute.</p>
+on campus can check availability and reserve an event venue in under a minute.</p>
 </section>
 
 <section>
@@ -33,8 +35,8 @@ on campus can check what's free and reserve a slot in under a minute.</p>
 <div class="timeline-step timeline-step-left">
 <div class="timeline-marker"></div>
 <div class="timeline-content">
-<h3>1. Browse Facilities</h3>
-<p>Explore available facilities and check real-time schedules before you head over.</p>
+<h3>1. Browse Venues</h3>
+<p>Explore available halls, auditoriums, and function rooms with real-time schedule information.</p>
 </div>
 </div>
 <div class="timeline-step timeline-step-right">
@@ -47,22 +49,22 @@ on campus can check what's free and reserve a slot in under a minute.</p>
 <div class="timeline-step timeline-step-left">
 <div class="timeline-marker"></div>
 <div class="timeline-content">
-<h3>3. Make a Booking</h3>
-<p>Pick a date and time slot that works for you — it's reserved the moment you confirm.</p>
+<h3>3. Make a Reservation</h3>
+<p>Pick a date and time slot that works for your event — it's reserved the moment you confirm.</p>
 </div>
 </div>
 <div class="timeline-step timeline-step-right">
 <div class="timeline-marker"></div>
 <div class="timeline-content">
 <h3>4. Get Confirmation</h3>
-<p>Receive an instant on-screen confirmation with a reference number for your records.</p>
+<p>Receive an instant on-screen confirmation with a reference number for your event records.</p>
 </div>
 </div>
 <div class="timeline-step timeline-step-left">
 <div class="timeline-marker"></div>
 <div class="timeline-content">
-<h3>5. Enjoy Your Game</h3>
-<p>Show up at your slot. No queueing, no double-booking, no fuss.</p>
+<h3>5. Host Your Event</h3>
+<p>Arrive at your reserved slot. No manual queues, no double-booking, no hassle.</p>
 </div>
 </div>
 </div>

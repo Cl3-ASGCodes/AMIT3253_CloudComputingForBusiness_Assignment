@@ -35,8 +35,8 @@ CREATE TABLE facilities (
   name VARCHAR(100) NOT NULL,
   location VARCHAR(100) NOT NULL,
   capacity INT NOT NULL DEFAULT 1,
-  description TEXT NULL,
   flexible BOOLEAN DEFAULT FALSE,
+  description TEXT NULL,
   features TEXT NULL,
   layout_url VARCHAR(500) NULL
 );
@@ -53,13 +53,13 @@ CREATE TABLE courts (
 );
 
 CREATE TABLE facility_images (
-  id INT AUTO_INCREMENT PRIMATY_KEY,
-  description TEXT NULL,
-  image_url VARCHAR(500) NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
   facility_id INT NOT NULL,
   court_id INT NULL,
-  FOREIGN KEY (facility_id) REFERENCES court(facility_id),
-  FOREIGN KEY (court_id) REFERENCES court(id)
+  image_url VARCHAR(500) NOT NULL,
+  description VARCHAR(255) NULL,
+  FOREIGN KEY (facility_id) REFERENCES facilities(id),
+  FOREIGN KEY (court_id) REFERENCES courts(id)
 );
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
@@ -71,6 +71,12 @@ INSERT INTO facilities (name, location, capacity, description, flexible, feature
 SET @dtar_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES
 (@dtar_id, 'Main Hall');
+INSERT INTO facility_images (facility_id, image_url, description) VALUES
+(@dtar_id, '/uploads/Event Halls/DTAR_HALL_A.jpg', 'Audience View'),
+(@dtar_id, '/uploads/Event Halls/DTAR_STAGE.jpg', 'View from Stage'),
+(@dtar_id, '/uploads/Event Halls/DTAR_FOYER.jpg', 'Foyer'),
+(@dtar_id, '/uploads/Event Halls/DTAR-VIP.jpg', 'VIP Holding Room'),
+(@dtar_id, '/uploads/Event Halls/DTAR_GRAD.jpg', 'Previous Activity - Graduation Ceremony');
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
 ('Function Hall', 'Arena, \n1st, 2nd and 5th Floor', 200,
@@ -79,10 +85,21 @@ INSERT INTO facilities (name, location, capacity, description, flexible, feature
  'Portable Sound Systems & TV Display\nLarge Windows with KL view\nFlexible Seating Arrangements');
 SET @func_hall_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES 
-(@func_hall_id, 'TA-113'),
+(@func_hall_id, 'TA-133'),
 (@func_hall_id, 'TA-205'),
 (@func_hall_id, 'TA-501'),
 (@func_hall_id, 'TA-505');
+INSERT INTO facility_images (facility_id, image_url, description) VALUES
+(@func_hall_id, '/uploads/Event Halls/FH_TA133_1.jpg', 'TA133'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA133_2.jpg', 'TA133'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA205_1.jpg', 'TA205'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA205_2.jpg', 'TA205'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA501_1.jpg', 'TA501'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA501_2.jpg', 'TA501'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA501_3.jpg', 'TA501'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA505_1.jpg', 'TA505'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA505_2.jpg', 'TA505'),
+(@func_hall_id, '/uploads/Event Halls/FH_TA505_3.jpg', 'TA505');
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
 ('Multi-Purpose Hall', 'Arena, Level 2', 300,
@@ -91,36 +108,53 @@ INSERT INTO facilities (name, location, capacity, description, flexible, feature
  'LED Screen, PA System and Portable Stage\nHigh Ceiling Architecture\nIdeal for Exhibitions, Gathering and Sports Events');
 SET @multi_purpose_id = LAST_INSERT_ID();
 INSERT INTO courts (facility_id, name) VALUES (@multi_purpose_id, 'Court 1');
+INSERT INTO facility_images (facility_id, image_url, description) VALUES
+(@multi_purpose_id, '/uploads/Event Halls/MPH_CSS_1.jpg', 'Consert/Seminar Setting'),
+(@multi_purpose_id, '/uploads/Event Halls/MPH_RTS_1.jpg', 'Round Table Setting'),
+(@multi_purpose_id, '/uploads/Event Halls/MPH_RTS_2.jpg', 'Round Table Setting'),
+(@multi_purpose_id, '/uploads/Event Halls/MPH_RTS_3.jpg', 'Round Table Setting');
 
 INSERT INTO facilities (name, location, capacity, description, features) VALUES
 ('RED BRICKS THEATRE', 'Arena, Level 5', 352,
  'A premium performance auditorium that offers maximum comfort for attendees.',
  '352 Sofa Seating\nLED Screen, PA System, Lighting and Portable Stage\nHolding Areas for Performers and Guests\nPerfect for Movie Screenings, Talks and Acoustic Performances');
 SET @RB_Theatre_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@RB_Theatr_id, 'Court 1');
+INSERT INTO courts (facility_id, name) VALUES (@RB_Theatre_id, 'Court 1');
+INSERT INTO facility_images (facility_id, image_url, description) VALUES
+(@RB_Theatre_id, '/uploads/Event Halls/RBTA_AUD.jpg','Audiences View'),
+(@RB_Theatre_id, '/uploads/Event Halls/RBTA_STG.jpg','View from Stage'),
+(@RB_Theatre_id, '/uploads/Event Halls/RBTA_GHA.jpg','Guest Holding Area'),
+(@RB_Theatre_id, '/uploads/Event Halls/RBTA_PA_1.jpg','Previous Activity (1)'),
+(@RB_Theatre_id, '/uploads/Event Halls/PBTA_PA_2.jpg','Previous Activity (2)');
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
 ('SMALL SCALE FUNCTION ROOM', 'Club House, Level 2', 150,
  'Accommodates 150+ guests featuring a pre-function area for networking and catering.',
  TRUE,
  'LED Screen, PA System and Stage\nFlexible Floor Plan Arrangements\nIdeal for Seminars and Workshops');
-SET @volleyball_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@volleyball_id, 'Court 1');
+SET @ssfr_id = LAST_INSERT_ID();
+INSERT INTO courts (facility_id, name) VALUES (@ssfr_id, 'Function Room 1');
+INSERT INTO facility_images (facility_id, image_url, description) VALUES
+(@ssfr_id, '/uploads/Event Halls/SSFR_PIC_1.jpg', NULL),
+(@ssfr_id, '/uploads/Event Halls/SSFR_PIC_2.jpg', NULL),
+(@ssfr_id, '/uploads/Event Halls/SSFR_PIC_3.jpg', NULL),
+(@ssfr_id, '/uploads/Event Halls/SSFR_PFA.jpg', 'Pre-function Area'),
+(@ssfr_id, '/uploads/Event Halls/SSFR_VIP.jpg', 'VIP Holding Room / Pre-function Room');
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
 ('Academic & training facilities', 'Assorted Areas', 400,
  'Our academic spaces are designed for focus and engagement, suitable for everthing from small-group sessions to large examinations.',
  TRUE,
  'Capacity Option: 20 - 400 Pax\nBuilt in Projector Screen and PA System\nIdeal for Academic Seminars, Classes and Formal Examinations');
-SET @swimming_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@swimming_id, 'Main Pool');
-
-UPDATE facilities SET image_url = '/uploads/Event Halls/DTAR_HALL_A.jpg' WHERE name = 'Dewan Tunku Abdul Rahman';
-UPDATE facilities SET image_url = '/uploads/sample-futsal.jpg' WHERE name = 'Futsal';
-UPDATE facilities SET image_url = '/uploads/sample-squash.jpg' WHERE name = 'Squash';
-UPDATE facilities SET image_url = '/uploads/sample-basketball.jpg' WHERE name = 'Basketball';
-UPDATE facilities SET image_url = '/uploads/sample-volleyball.jpg' WHERE name = 'Volleyball';
-UPDATE facilities SET image_url = '/uploads/sample-swimming.jpg' WHERE name = 'Swimming';
+SET @atf_id = LAST_INSERT_ID();
+INSERT INTO courts (facility_id, name) VALUES (@atf_id, 'Room 1');
+INSERT INTO facility_images (facility_id, image_url) VALUES
+(@atf_id, '/uploads/Event Halls/ATF_PIC_1.jpg'),
+(@atf_id, '/uploads/Event Halls/ATF_PIC_2.jpg'),
+(@atf_id, '/uploads/Event Halls/ATF_PIC_3.jpg'),
+(@atf_id, '/uploads/Event Halls/ATF_PIC_4.jpg'),
+(@atf_id, '/uploads/Event Halls/ATF_PIC_5.jpg'),
+(@atf_id, '/uploads/Event Halls/ATF_PIC_6.jpg');
 
 CREATE TABLE time_slots (
   id INT AUTO_INCREMENT PRIMARY KEY,

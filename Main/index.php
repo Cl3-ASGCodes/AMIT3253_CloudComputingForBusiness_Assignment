@@ -6,26 +6,30 @@ require 'helpers.php';
 $search = trim($_GET['q'] ?? '');
 
 if ($search !== '') {
-    $stmt = $conn->prepare('SELECT * FROM facilities WHERE name LIKE ? ORDER BY name');
-    $likeSearch = '%' . $search . '%';
-    $stmt->bind_param('s', $likeSearch);
-    $stmt->execute();
-    $facilities = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
+    $facilities = db_fetch_all(
+        'SELECT f.*, (SELECT image_url FROM facility_images fi WHERE fi.facility_id = f.id LIMIT 1) AS image_url 
+         FROM facilities f 
+         WHERE f.name LIKE ? 
+         ORDER BY f.name',
+        ['%' . $search . '%']
+    );
 } else {
-    $facilities = $conn->query('SELECT * FROM facilities ORDER BY name')->fetch_all(MYSQLI_ASSOC);
+    $facilities = db_fetch_all(
+        'SELECT f.*, (SELECT image_url FROM facility_images fi WHERE fi.facility_id = f.id LIMIT 1) AS image_url 
+         FROM facilities f 
+         ORDER BY f.name'
+    );
 }
 
 $notifications = [];
 $myBookings = [];
 if ($uid = current_user_id()) {
-    $stmt = $conn->prepare('SELECT id, message, created_at FROM notifications WHERE user_id = ? AND read_at IS NULL ORDER BY created_at DESC');
-    $stmt->bind_param('i', $uid);
-    $stmt->execute();
-    $notifications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
+    $notifications = db_fetch_all(
+        'SELECT id, message, created_at FROM notifications WHERE user_id = ? AND read_at IS NULL ORDER BY created_at DESC',
+        [$uid]
+    );
 
-    $stmt = $conn->prepare('
+    $myBookings = db_fetch_all('
         SELECT b.id, f.name AS facility_name, co.name AS court_name, b.booking_date, t.label AS time_slot
         FROM bookings b
         JOIN courts co ON co.id = b.court_id
@@ -33,11 +37,7 @@ if ($uid = current_user_id()) {
         JOIN time_slots t ON t.id = b.time_slot_id
         WHERE b.user_id = ?
         ORDER BY b.booking_date, t.sort_order
-    ');
-    $stmt->bind_param('i', $uid);
-    $stmt->execute();
-    $myBookings = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt->close();
+    ', [$uid]);
 }
 
 $pageTitle = 'Sports Facility Booking';
@@ -45,17 +45,17 @@ require 'partials/header.php';
 ?>
 <?php foreach ($notifications as $n): ?>
 <div class="alert alert-warning">
-<span>&#128276; <?= htmlspecialchars($n['message']) ?></span>
+<span>&#128276; <?= htmlspecialchars($n->message) ?></span>
 <form action="notification_dismiss.php" method="post">
-<input type="hidden" name="id" value="<?= (int)$n['id'] ?>">
+<input type="hidden" name="id" value="<?= (int)$n->id ?>">
 <button type="submit" class="btn btn-small btn-secondary">Dismiss</button>
 </form>
 </div>
 <?php endforeach; ?>
 
 <div class="page-header">
-<h1>Campus Sports Facility Booking</h1>
-<p>Reserve badminton courts, futsal courts and more in a few clicks.</p>
+<h1>Campus Event Venue Booking</h1>
+<p>Easy access portal for venue booking for Guest and TARCIANs.</p>
 </div>
 
 <section>
@@ -90,14 +90,14 @@ require 'partials/header.php';
 <div class="card-grid">
 <?php foreach ($facilities as $f): ?>
 <div class="card">
-<img class="card-thumb" src="<?= htmlspecialchars(facility_image_url($f)) ?>" alt="<?= htmlspecialchars($f['name']) ?>" loading="lazy">
-<h3><?= htmlspecialchars($f['name']) ?></h3>
-<p><?= htmlspecialchars($f['location']) ?></p>
-<p>Capacity: <?= (int)$f['capacity'] ?></p>
+<img class="card-thumb" src="<?= htmlspecialchars(facility_image_url((array)$f)) ?>" alt="<?= htmlspecialchars($f->name) ?>" loading="lazy">
+<h3><?= htmlspecialchars($f->name) ?></h3>
+<p><?= htmlspecialchars($f->location) ?></p>
+<p>Capacity: <?= (int)$f->capacity ?></p>
 <div class="card-actions">
-<a class="btn btn-secondary btn-small" href="schedule.php?facility_id=<?= (int)$f['id'] ?>">View Schedule</a>
+<a class="btn btn-secondary btn-small" href="schedule.php?facility_id=<?= (int)$f->id ?>">View Schedule</a>
 <?php if (current_user_id()): ?>
-<a class="btn btn-small" href="create.php?facility_id=<?= (int)$f['id'] ?>">Book Now</a>
+<a class="btn btn-small" href="create.php?facility_id=<?= (int)$f->id ?>">Book Now</a>
 <?php else: ?>
 <a class="btn btn-small" href="login.php">Login to Book</a>
 <?php endif; ?>
@@ -125,14 +125,14 @@ require 'partials/header.php';
 <tr><th>Facility</th><th>Court</th><th>Date</th><th>Time Slot</th><th>Actions</th></tr>
 <?php foreach ($myBookings as $b): ?>
 <tr>
-<td><?= htmlspecialchars($b['facility_name']) ?></td>
-<td><?= htmlspecialchars($b['court_name']) ?></td>
-<td><?= htmlspecialchars($b['booking_date']) ?></td>
-<td><?= htmlspecialchars($b['time_slot']) ?></td>
+<td><?= htmlspecialchars($b->facility_name) ?></td>
+<td><?= htmlspecialchars($b->court_name) ?></td>
+<td><?= htmlspecialchars($b->booking_date) ?></td>
+<td><?= htmlspecialchars($b->time_slot) ?></td>
 <td>
-<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$b['id'] ?>">Edit</a>
+<a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$b->id ?>">Edit</a>
 <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Delete this booking?');">
-<input type="hidden" name="id" value="<?= (int)$b['id'] ?>">
+<input type="hidden" name="id" value="<?= (int)$b->id ?>">
 <button type="submit" class="btn-small btn-danger">Delete</button>
 </form>
 </td>

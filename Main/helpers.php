@@ -331,3 +331,127 @@ function s3_response_status($responseHeaders) {
     }
     return 0;
 }
+
+### PDO CRUD Helper Engine Specifications
+/*
+* **Query Execution Abstraction**: All database interactions utilize prepared statements to prevent SQL injection.
+* **Default Fetch Mode**: Inherits `PDO::FETCH_OBJ` from `$conn` configuration for standard object returns.
+* **Transaction Management**: Automatic `commit()` and `rollBack()` wrapping via closure execution.
+* **Convenience Wrappers**:
+* `db_query()`: Prepares and executes raw SQL with parameterized values.
+* `db_fetch_all()`: Returns array of result objects.
+* `db_fetch_one()`: Returns single object or `null`.
+* `db_fetch_value()`: Returns single column scalar value or `null`.
+* `db_insert()`: Builds and executes an `INSERT` statement, returning the inserted auto-increment ID.
+* `db_update()`: Builds and executes an `UPDATE` statement, returning affected row count.
+* `db_delete()`: Builds and executes a `DELETE` statement, returning affected row count.
+* `db_exists()`: Evaluates existence of matching row(s).
+* `db_count()`: Calculates aggregate row count matching specified conditions.
+* `db_transaction()`: Enforces atomic database transactions using standard closures.
+*/
+// ============================================================================
+// PDO Database CRUD & Quality of Life (QoL) Helpers
+// ============================================================================
+
+/**
+ * Prepares and executes an SQL statement with parameters.
+ */
+function db_query(string $sql, array $params = []): PDOStatement {
+    global $conn;
+    $stmt = $conn->prepare($sql);
+    $stmt->execute($params);
+    return $stmt;
+}
+
+/**
+ * Fetches all records from a query as an array of objects.
+ */
+function db_fetch_all(string $sql, array $params = []): array {
+    return db_query($sql, $params)->fetchAll();
+}
+
+/**
+ * Fetches a single record from a query as an object, or null if not found.
+ */
+function db_fetch_one(string $sql, array $params = []): ?object {
+    $result = db_query($sql, $params)->fetch();
+    return $result ?: null;
+}
+
+/**
+ * Fetches a single column value from the first row of a query.
+ */
+function db_fetch_value(string $sql, array $params = [], int $columnIndex = 0): mixed {
+    $result = db_query($sql, $params)->fetchColumn($columnIndex);
+    return $result !== false ? $result : null;
+}
+
+/**
+ * Inserts a record into a table and returns the last inserted ID.
+ */
+function db_insert(string $table, array $data): int|string {
+    global $conn;
+    $fields = array_keys($data);
+    $columns = implode(', ', array_map(fn($f) => "`$f`", $fields));
+    $placeholders = implode(', ', array_fill(0, count($fields), '?'));
+
+    $sql = "INSERT INTO `$table` ($columns) VALUES ($placeholders)";
+    db_query($sql, array_values($data));
+
+    return $conn->lastInsertId();
+}
+
+/**
+ * Updates records matching criteria and returns affected row count.
+ */
+function db_update(string $table, array $data, string $whereSql, array $whereParams = []): int {
+    $fields = array_keys($data);
+    $setClause = implode(', ', array_map(fn($f) => "`$f` = ?", $fields));
+
+    $sql = "UPDATE `$table` SET $setClause WHERE $whereSql";
+    $params = array_merge(array_values($data), $whereParams);
+
+    return db_query($sql, $params)->rowCount();
+}
+
+/**
+ * Deletes records matching criteria and returns affected row count.
+ */
+function db_delete(string $table, string $whereSql, array $whereParams = []): int {
+    $sql = "DELETE FROM `$table` WHERE $whereSql";
+    return db_query($sql, $whereParams)->rowCount();
+}
+
+/**
+ * Checks if at least one row matches specified condition.
+ */
+function db_exists(string $table, string $whereSql, array $whereParams = []): bool {
+    $sql = "SELECT 1 FROM `$table` WHERE $whereSql LIMIT 1";
+    return db_fetch_value($sql, $whereParams) !== null;
+}
+
+/**
+ * Returns aggregate row count matching specified condition.
+ */
+function db_count(string $table, string $whereSql = '1=1', array $whereParams = []): int {
+    $sql = "SELECT COUNT(*) FROM `$table` WHERE $whereSql";
+    return (int) db_fetch_value($sql, $whereParams);
+}
+
+/**
+ * Executes a transactional callback, automatically performing commit/rollback.
+ */
+function db_transaction(callable $callback): mixed {
+    global $conn;
+    $conn->beginTransaction();
+    try {
+        $result = $callback($conn);
+        $conn->commit();
+        return $result;
+    } catch (Throwable $e) {
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+        throw $e;
+    }
+}

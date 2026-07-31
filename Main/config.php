@@ -34,7 +34,7 @@ if (is_readable($envFile)) {
 // Use legacy-style error reporting: mysqli functions return false on
 // failure (e.g. a duplicate booking) instead of throwing an exception,
 // so ordinary "if (!$stmt->execute())" checks work as expected below.
-mysqli_report(MYSQLI_REPORT_OFF);
+// mysqli_report(MYSQLI_REPORT_OFF);
 
 // TAR UMT is in Malaysia (UTC+8), but this server's OS clock defaults to UTC
 // (true both locally in Docker and on a stock EC2 instance) - without this,
@@ -70,6 +70,14 @@ $user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') ?: '';
 $dbname = getenv('DB_NAME') ?: 'eventhalls_db';
 
+$dsn = "mysql:host=$host;dbname=$dbname";
+
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
+
 // @-suppressed: even with MYSQLI_REPORT_OFF (no exception), a failed
 // connection still emits a PHP-level warning straight into the response
 // body. With display_errors on, that warning is output before the
@@ -77,19 +85,21 @@ $dbname = getenv('DB_NAME') ?: 'eventhalls_db';
 // 200 status - making the http_response_code(500) call too late to matter.
 // Suppressing it here keeps the failure check as the single source of truth
 // for what gets reported.
-$conn = @new mysqli($host, $user, $pass, $dbname);
-if ($conn->connect_error) {
+
+try {
+    $conn = new PDO($dsn, $user, $pass, $options);
+} catch (PDOException $e) {
     // Signal unhealthy to an ALB health check (or anything else probing this
     // page) instead of silently returning 200 OK with an error message body -
     // otherwise a target group would keep routing real traffic to an
     // instance that can't reach its database.
     http_response_code(500);
-    die('Database connection failed: ' . $conn->connect_error);
+    die('Database connection failed: ' . $e->getMessage());
 }
 
 // Keep MySQL's NOW()/CURRENT_TIMESTAMP in step with the PHP timezone above -
 // otherwise created_at/returned_at etc. would still be recorded 8 hours off.
-$conn->query("SET time_zone = '+08:00'");
+$conn->exec("SET time_zone = '+08:00'");
 
 // ============================================================================
 // Photo storage (S3) - optional
