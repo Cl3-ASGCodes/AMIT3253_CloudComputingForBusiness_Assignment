@@ -1,16 +1,14 @@
 <?php
 require 'config.php';
 require 'auth.php';
+require 'helpers.php';
 require_login();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id  = (int)$_POST['id'];
     $uid = current_user_id();
 
-    $stmt = $conn->prepare('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?');
-    $stmt->bind_param('ii', $id, $uid);
-    $stmt->execute();
-    $stmt->close();
+    db_query('UPDATE notifications SET read_at = NOW() WHERE id = ? AND user_id = ?', [$id, $uid]);
 }
 
 header('Location: index.php');

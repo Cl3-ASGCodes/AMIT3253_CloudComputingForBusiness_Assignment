@@ -1,6 +1,7 @@
 <?php
 $currentPage = basename($_SERVER['PHP_SELF']);
 $facilityPages = ['facilities.php', 'facility_create.php', 'facility_edit.php', 'court_create.php', 'court_edit.php'];
+$eventPages = ['events.php', 'event_create.php', 'event_edit.php'];
 ?>
 <!DOCTYPE html>
 <html>
@@ -15,19 +16,22 @@ $facilityPages = ['facilities.php', 'facility_create.php', 'facility_edit.php', 
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($pageTitle ?? 'Admin - Sports Facility Booking') ?></title>
+<title><?= htmlspecialchars($pageTitle ?? 'Admin - TARC Venue & Event Ticketing') ?></title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <link rel="stylesheet" href="../style.css?v=<?= @filemtime(__DIR__ . '/../../style.css') ?>">
 </head>
 <body>
 <nav class="navbar">
-<a class="brand" href="facilities.php"><img src="../assets/tarumt-logo.png" alt="TAR UMT" class="brand-logo">Admin &middot; Sports Facility Booking</a>
+<a class="brand" href="dashboard.php"><img src="../assets/tarumt-logo.png" alt="TAR UMT" class="brand-logo">Admin &middot; Venue & Ticketing</a>
 <div class="nav-links">
-<a href="facilities.php" class="<?= in_array($currentPage, $facilityPages) ? 'active' : '' ?>">Facilities</a>
+<a href="dashboard.php" class="<?= $currentPage === 'dashboard.php' ? 'active' : '' ?>">Dashboard</a>
+<a href="events.php" class="<?= in_array($currentPage, $eventPages) ? 'active' : '' ?>">Events</a>
+<a href="orders.php" class="<?= $currentPage === 'orders.php' ? 'active' : '' ?>">Orders</a>
+<a href="checkin.php" class="<?= $currentPage === 'checkin.php' ? 'active' : '' ?>">Check-in</a>
+<a href="facilities.php" class="<?= in_array($currentPage, $facilityPages) ? 'active' : '' ?>">Venues</a>
 <a href="schedule.php" class="<?= $currentPage === 'schedule.php' ? 'active' : '' ?>">Schedule</a>
 <a href="bookings.php" class="<?= $currentPage === 'bookings.php' ? 'active' : '' ?>">Bookings</a>
 <a href="closures.php" class="<?= $currentPage === 'closures.php' ? 'active' : '' ?>">Closures</a>
-<a href="testimonials.php" class="<?= $currentPage === 'testimonials.php' ? 'active' : '' ?>">Testimonials</a>
 <a href="messages.php" class="<?= $currentPage === 'messages.php' ? 'active' : '' ?>">Messages</a>
 <a href="users.php" class="<?= $currentPage === 'users.php' ? 'active' : '' ?>">Users</a>
 <div class="user-menu">

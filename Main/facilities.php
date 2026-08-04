@@ -3,8 +3,37 @@ require 'config.php';
 require 'auth.php';
 require 'helpers.php';
 
-// Fetch all event venues
-$facilities = db_fetch_all('SELECT * FROM facilities ORDER BY capacity DESC');
+// Search handling
+$search = trim($_GET['q'] ?? '');
+if ($search !== '') {
+    $facilities = db_fetch_all(
+        "SELECT f.*, (SELECT image_url FROM facility_images fi WHERE fi.facility_id = f.id LIMIT 1) AS image_url
+         FROM facilities f
+         WHERE f.name LIKE ?
+         ORDER BY f.name",
+        ['%' . $search . '%']
+    );
+} else {
+    $facilities = db_fetch_all(
+        "SELECT f.*, (SELECT image_url FROM facility_images fi WHERE fi.facility_id = f.id LIMIT 1) AS image_url
+         FROM facilities f
+         ORDER BY f.name"
+    );
+}
+
+// My Bookings
+$myBookings = [];
+if ($uid = current_user_id()) {
+    $myBookings = db_fetch_all(
+        "SELECT b.id, f.name AS facility_name, co.name AS court_name, b.full_day, b.start_datetime, b.end_datetime, b.booking_date, b.reason
+         FROM bookings b
+         JOIN courts co ON co.id = b.court_id
+         JOIN facilities f ON f.id = co.facility_id
+         WHERE b.user_id = ?
+         ORDER BY b.booking_date DESC",
+        [$uid]
+    );
+}
 
 $totalFacilities = count($facilities);
 $totalHalls      = db_count('courts');
@@ -15,62 +44,7 @@ $pageDescription = 'A detailed look at each campus event venue - capacity, layou
 require 'partials/header.php';
 ?>
 
-<style>
-.slideshow-container {
-    position: relative;
-    max-width: 100%;
-    border-radius: 8px;
-    overflow: hidden;
-    background-color: #1a1a1a;
-    margin-bottom: 1rem;
-}
-.slide-frame {
-    display: none;
-    position: relative;
-    width: 100%;
-    height: 320px;
-}
-.slide-frame.active {
-    display: block;
-}
-.slide-frame img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.slide-caption {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 8px 16px;
-    font-size: 0.88rem;
-}
-.slide-prev, .slide-next {
-    cursor: pointer;
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    padding: 10px 14px;
-    color: white;
-    font-weight: bold;
-    font-size: 16px;
-    transition: 0.2s ease;
-    border-radius: 0 3px 3px 0;
-    user-select: none;
-    background-color: rgba(0,0,0,0.4);
-    border: none;
-}
-.slide-next {
-    right: 0;
-    border-radius: 3px 0 0 3px;
-}
-.slide-prev:hover, .slide-next:hover {
-    background-color: rgba(0,0,0,0.8);
-}
-</style>
+
 
 <div class="page-header">
 <h1>Our Event Venues</h1>
@@ -85,57 +59,151 @@ require 'partials/header.php';
 </div>
 </section>
 
-<?php foreach ($facilities as $f): ?>
-<?php
-$halls = db_fetch_all('SELECT name FROM courts WHERE facility_id = ? ORDER BY name', [$f->id]);
-$hallNames = array_map(fn($h) => $h->name, $halls);
-
-$images = db_fetch_all('SELECT image_url, description FROM facility_images WHERE facility_id = ? ORDER BY id', [$f->id]);
-?>
-<section class="facility-profile">
-<div class="facility-profile-header">
-<div>
-<h3><?= htmlspecialchars($f->name) ?></h3>
-<p>&#128205; <?= htmlspecialchars($f->location) ?> &middot; Capacity: Up to <?= (int)$f->capacity ?> guests</p>
-<p><?= count($hallNames) ?> hall/space<?= count($hallNames) === 1 ? '' : 's' ?> available: <?= htmlspecialchars(implode(', ', $hallNames)) ?></p>
-</div>
-</div>
-
-<?php if (!empty($images)): ?>
-<div class="slideshow-container" data-slideshow-id="<?= (int)$f->id ?>">
-    <?php foreach ($images as $index => $img): ?>
-    <div class="slide-frame <?= $index === 0 ? 'active' : '' ?>">
-        <img src="<?= htmlspecialchars($img->image_url) ?>" alt="<?= htmlspecialchars($img->description ?? $f->name) ?>" loading="lazy">
-        <?php if (!empty($img->description)): ?>
-        <div class="slide-caption"><?= htmlspecialchars($img->description) ?></div>
-        <?php endif; ?>
-    </div>
-    <?php endforeach; ?>
-
-    <?php if (count($images) > 1): ?>
-    <button type="button" class="slide-prev" onclick="moveSlide(<?= (int)$f->id ?>, -1)">&#10094;</button>
-    <button type="button" class="slide-next" onclick="moveSlide(<?= (int)$f->id ?>, 1)">&#10095;</button>
+<form method="get" class="filter-bar" id="facility-filter-form">
+    <label>Search <input type="text" name="q" id="facility-search" placeholder="Facility name..." value="<?= htmlspecialchars($search) ?>" autocomplete="off"></label>
+    <button type="submit">Search</button>
+    <?php if ($search !== ''): ?>
+        <a class="btn btn-secondary" href="facilities.php#facilities">Clear</a>
     <?php endif; ?>
-</div>
-<?php endif; ?>
+</form>
+<script>
+(function(){
+    var input=document.getElementById('facility-search');
+    var form=document.getElementById('facility-filter-form');
+    if(!input||!form) return;
+    var timer;
+    input.addEventListener('input',function(){
+        clearTimeout(timer);
+        timer=setTimeout(function(){form.submit();},500);
+    });
+})();
+</script>
 
-<?php if (!empty($f->description)): ?>
-<p><?= htmlspecialchars($f->description) ?></p>
-<?php endif; ?>
+    <section class="card-grid">
+        <?php foreach ($facilities as $f): ?>
+            <?php
+                $halls = db_fetch_all('SELECT name FROM courts WHERE facility_id = ? ORDER BY name', [$f->id]);
+                $hallNames = array_map(fn($h)=>$h->name, $halls);
+                $images = db_fetch_all('SELECT image_url, description FROM facility_images WHERE facility_id = ? ORDER BY id', [$f->id]);
+            ?>
+            <section class="facility-profile">
+                <div class="facility-profile-header">
+                    <div>
+                        <h3><?= htmlspecialchars($f->name) ?></h3>
+                        <p>&#128205; <?= htmlspecialchars($f->location) ?> &middot; Capacity: Up to <?= (int)$f->capacity ?> guests</p>
+                        <p><?= count($hallNames) ?> hall/space<?= count($hallNames)===1?'' : 's' ?> available: <?= htmlspecialchars(implode(', ', $hallNames)) ?></p>
+                    </div>
+                </div>
+                <?php if (!empty($images)): ?>
+                    <div class="slideshow-container" data-slideshow-id="<?= (int)$f->id ?>">
 
-<?php if (!empty($f->features)): ?>
-<h4>Key Venue Features &amp; Equipment</h4>
-<ul class="policy-list">
-<?php foreach (explode("\n", $f->features) as $feature): ?>
-<?php $feature = trim($feature); ?>
-<?php if ($feature !== ''): ?>
-<li><?= htmlspecialchars($feature) ?></li>
+                        <?php foreach ($images as $idx=>$img): ?>
+                            <div class="slide-frame <?= $idx===0 ? 'active' : '' ?>">
+                                <img src="<?= htmlspecialchars($img->image_url) ?>" alt="<?= htmlspecialchars($img->description ?? $f->name) ?>" loading="lazy">
+                                    <?php if (!empty($img->description)): ?>
+                                        <div class="slide-caption"><?= htmlspecialchars($img->description) ?></div>
+                                    <?php endif; ?>
+                                    <div class="slide-progress"></div>
+                            </div>
+                        <?php endforeach; ?>
+                        <?php if (count($images) > 1): ?>
+                            <button type="button" class="slide-prev" onclick="moveSlide(<?= (int)$f->id ?>, -1)">&#10094;</button>
+                            <button type="button" class="slide-next" onclick="moveSlide(<?= (int)$f->id ?>, 1)">&#10095;</button>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($f->description)): ?>
+                    <p><?= htmlspecialchars($f->description) ?></p>
+                <?php endif; ?>
+                <?php if (!empty($f->features)): ?>
+                    <h4>Key Venue Features &amp; Equipment</h4>
+                    <ul class="policy-list">
+                        <?php foreach (explode("\n", $f->features) as $feature): ?>
+                            <?php $feature = trim($feature); ?>
+                            <?php if ($feature !== ''): ?>
+                                <li><?= htmlspecialchars($feature) ?></li>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+                <div class="card-actions" style="margin-top:1rem;">
+                    <a class="btn btn-secondary btn-small" href="schedule.php?facility_id=<?= (int)$f->id ?>">View Schedule</a>
+                    <?php if (current_user_id()): ?>
+                        <a class="btn btn-small" href="create.php?facility_id=<?= (int)$f->id ?>">Book Now</a>
+                    <?php else: ?>
+                        <a class="btn btn-small" href="login.php">Login to Book</a>
+                    <?php endif; ?>
+                </div>
+            </section>
+        <?php endforeach; ?>
+    </section>
+
+        <script>
+function moveSlide(containerId, direction) {
+    var container = document.querySelector('.slideshow-container[data-slideshow-id="' + containerId + '"]');
+    if (!container) return;
+    var slides = container.querySelectorAll('.slide-frame');
+    if (slides.length <= 1) return;
+    var currentIndex = -1;
+    slides.forEach(function(s,i){ if (s.classList.contains('active')) currentIndex = i; });
+    if (currentIndex !== -1) {
+        slides[currentIndex].classList.remove('active');
+        var newIndex = (currentIndex + direction + slides.length) % slides.length;
+        slides[newIndex].classList.add('active');
+    }
+}
+// Auto‑play all slideshows on load
+(function(){
+    var containers = document.querySelectorAll('.slideshow-container');
+    containers.forEach(function(container){
+        var slides = container.querySelectorAll('.slide-frame');
+        if (slides.length <= 1) return;
+        var index = 0;
+        setInterval(function(){
+            slides[index].classList.remove('active');
+            index = (index + 1) % slides.length;
+            slides[index].classList.add('active');
+        }, 4000); // change slide every 4 seconds
+    });
+})();
+</script>
+
+<?php if (current_user_id()): ?>
+    <?php if (empty($myBookings)): ?>
+        <div class="empty-state">
+            <div class="empty-state-icon">🔔</div>
+            <p>You have no bookings yet. Book a facility above to get started.</p>
+        </div>
+    <?php else: ?>
+        <section>
+            <h2>My Bookings</h2>
+            <table>
+                <tr><th>Facility</th><th>Court</th><th>Date</th><th>Time</th><th>Reason</th><th>Actions</th></tr>
+                <?php foreach ($myBookings as $b): ?>
+                <tr>
+                    <td><?= htmlspecialchars($b->facility_name) ?></td>
+                    <td><?= htmlspecialchars($b->court_name) ?></td>
+                    <td><?= htmlspecialchars($b->booking_date) ?></td>
+                    <td><?php if ($b->full_day): ?>Full Day<?php else: ?><?= date('H:i', strtotime($b->start_datetime)) ?> - <?= date('H:i', strtotime($b->end_datetime)) ?><?php endif; ?></td>
+                    <td><?= htmlspecialchars($b->reason ?? '') ?></td>
+                    <td>
+                        <a class="btn btn-secondary btn-small" href="edit.php?id=<?= (int)$b->id ?>">Edit</a>
+                        <form action="delete.php" method="post" style="display:inline" onsubmit="return confirm('Delete this booking?');">
+                            <input type="hidden" name="id" value="<?= (int)$b->id ?>">
+                            <button type="submit" class="btn btn-small btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        </section>
+    <?php endif; ?>
+<?php else: ?>
+    <div class="empty-state">
+        <div class="empty-state-icon">🔔</div>
+        <p><a href="login.php">Login</a> or <a href="register.php">Register</a> to view and manage your bookings.</p>
+    </div>
 <?php endif; ?>
-<?php endforeach; ?>
-</ul>
-<?php endif; ?>
-</section>
-<?php endforeach; ?>
 
 <section>
 <h2>General Event Booking Guidelines</h2>
@@ -166,28 +234,5 @@ $images = db_fetch_all('SELECT image_url, description FROM facility_images WHERE
 <p>There is no rigid cap — reserve as many distinct spaces or time slots as required, provided slots do not overlap.</p>
 </details>
 </section>
-
-<script>
-function moveSlide(containerId, direction) {
-    var container = document.querySelector('.slideshow-container[data-slideshow-id="' + containerId + '"]');
-    if (!container) return;
-    var slides = container.querySelectorAll('.slide-frame');
-    if (slides.length <= 1) return;
-
-    var currentIndex = -1;
-    for (var i = 0; i < slides.length; i++) {
-        if (slides[i].classList.contains('active')) {
-            currentIndex = i;
-            break;
-        }
-    }
-
-    if (currentIndex !== -1) {
-        slides[currentIndex].classList.remove('active');
-        var newIndex = (currentIndex + direction + slides.length) % slides.length;
-        slides[newIndex].classList.add('active');
-    }
-}
-</script>
 
 <?php require 'partials/footer.php'; ?>

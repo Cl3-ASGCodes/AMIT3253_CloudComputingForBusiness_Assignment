@@ -1,13 +1,14 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name    = trim($_POST['name'] ?? '');
-    $email   = trim($_POST['email'] ?? '');
+    $name     = trim($_POST['name'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm  = $_POST['confirm_password'] ?? '';
 
@@ -17,23 +18,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Passwords do not match.';
     } elseif (strlen($password) < 6) {
         $error = 'Password must be at least 6 characters.';
+    } elseif (db_exists('users', 'email = ?', [$email])) {
+        $error = 'An account with this email address already exists.';
     } else {
-        $stmt = $conn->prepare('SELECT id FROM users WHERE email = ?');
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $exists = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
+        $username = explode('@', $email)[0] . '_' . rand(100, 999);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
-        if ($exists) {
-            $error = 'An account with this email already exists.';
-        } else {
-            $password_hash = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare('INSERT INTO users (name, email, password_hash, is_admin) VALUES (?, ?, ?, 1)');
-            $stmt->bind_param('sss', $name, $email, $password_hash);
-            $stmt->execute();
-            $stmt->close();
+        try {
+            db_transaction(function() use ($username, $password_hash, $name, $email) {
+                $login_id = db_insert('login', [
+                    'username'      => $username,
+                    'password_hash' => $password_hash,
+                    'user_type'     => 'admin'
+                ]);
+
+                return db_insert('users', [
+                    'name'     => $name,
+                    'email'    => $email,
+                    'login_id' => $login_id
+                ]);
+            });
+
             header('Location: users.php');
             exit;
+        } catch (Throwable $e) {
+            $error = 'Failed to create admin account. Please try again.';
         }
     }
 }
@@ -43,8 +52,7 @@ require 'partials/header.php';
 ?>
 <div class="form-card">
 <h1>Add Admin</h1>
-<p>Creates a new account that already has admin access — no self-registration or
-promotion needed.</p>
+<p>Creates a new account that already has admin access — no self-registration or promotion needed.</p>
 <?php if ($error): ?><p class="alert alert-error"><?= htmlspecialchars($error) ?></p><?php endif; ?>
 <form method="post">
 <label>Full Name <input type="text" name="name" value="<?= htmlspecialchars($_POST['name'] ?? '') ?>" required></label>
@@ -63,6 +71,8 @@ promotion needed.</p>
 </label>
 <button type="submit">Create Admin Account</button>
 </form>
-<p><a class="btn btn-secondary btn-small" href="users.php">Back to users</a></p>
+<div class="card-actions">
+<a class="btn btn-secondary btn-small" href="users.php">Back to Users</a>
+</div>
 </div>
 <?php require 'partials/footer.php'; ?>

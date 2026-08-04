@@ -1,26 +1,22 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)$_POST['id'];
 
-    $stmt = $conn->prepare('SELECT facility_id FROM courts WHERE id = ?');
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-    $court = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $court = db_fetch_one('SELECT facility_id FROM courts WHERE id = ?', [$id]);
 
     if ($court) {
-        $stmt = $conn->prepare('DELETE FROM courts WHERE id = ?');
-        $stmt->bind_param('i', $id);
-        if (!$stmt->execute()) {
-            $_SESSION['flash_error'] = 'Cannot delete this court: it still has bookings or closures referencing it.';
+        try {
+            db_delete('courts', 'id = ?', [$id]);
+        } catch (PDOException $e) {
+            $_SESSION['flash_error'] = 'Cannot delete this court: it still has active bookings, events, or closures referencing it.';
         }
-        $stmt->close();
 
-        header('Location: facility_edit.php?id=' . $court['facility_id']);
+        header('Location: facility_edit.php?id=' . $court->facility_id);
         exit;
     }
 }

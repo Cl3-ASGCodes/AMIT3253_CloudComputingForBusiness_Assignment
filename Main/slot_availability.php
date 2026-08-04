@@ -1,6 +1,7 @@
 <?php
 require 'config.php';
 require 'auth.php';
+require 'helpers.php';
 require_login();
 
 header('Content-Type: application/json');
@@ -14,30 +15,30 @@ if ($court_id < 1 || $date === '') {
     exit;
 }
 
-$stmt = $conn->prepare('SELECT time_slot_id FROM bookings WHERE court_id = ? AND booking_date = ? AND id != ?');
-$stmt->bind_param('isi', $court_id, $date, $excludeId);
-$stmt->execute();
-$booked = array_map('intval', array_column($stmt->get_result()->fetch_all(MYSQLI_ASSOC), 'time_slot_id'));
-$stmt->close();
+$bookedRows = db_fetch_all(
+    'SELECT time_slot_id FROM bookings WHERE court_id = ? AND booking_date = ? AND id != ?',
+    [$court_id, $date, $excludeId]
+);
+$booked = array_map(fn($r) => (int)$r->time_slot_id, $bookedRows);
 
-$stmt = $conn->prepare('SELECT time_slot_id FROM closures WHERE court_id = ? AND closure_date = ?');
-$stmt->bind_param('is', $court_id, $date);
-$stmt->execute();
-$closures = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+$closures = db_fetch_all(
+    'SELECT time_slot_id FROM closures WHERE court_id = ? AND closure_date = ?',
+    [$court_id, $date]
+);
 
 $closedAllDay = false;
 $closedSlotIds = [];
 foreach ($closures as $c) {
-    if ($c['time_slot_id'] === null) {
+    if ($c->time_slot_id === null) {
         $closedAllDay = true;
     } else {
-        $closedSlotIds[] = (int)$c['time_slot_id'];
+        $closedSlotIds[] = (int)$c->time_slot_id;
     }
 }
 
 if ($closedAllDay) {
-    $unavailable = array_map('intval', array_column($conn->query('SELECT id FROM time_slots')->fetch_all(MYSQLI_ASSOC), 'id'));
+    $allSlots = db_fetch_all('SELECT id FROM time_slots');
+    $unavailable = array_map(fn($s) => (int)$s->id, $allSlots);
 } else {
     $unavailable = array_values(array_unique(array_merge($booked, $closedSlotIds)));
 }

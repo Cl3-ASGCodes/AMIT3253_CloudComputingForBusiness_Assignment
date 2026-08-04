@@ -7,22 +7,19 @@ require_admin();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)$_POST['id'];
 
-    $stmt = $conn->prepare('SELECT image_url FROM facilities WHERE id = ?');
-    $stmt->bind_param('i', $id);
-    $stmt->execute();
-    $facility = $stmt->get_result()->fetch_assoc();
-    $stmt->close();
+    $facility = db_fetch_one('
+        SELECT f.*, (SELECT image_url FROM facility_images fi WHERE fi.facility_id = f.id LIMIT 1) AS image_url 
+        FROM facilities f WHERE f.id = ?
+    ', [$id]);
 
-    $stmt = $conn->prepare('DELETE FROM facilities WHERE id = ?');
-    $stmt->bind_param('i', $id);
-    if ($stmt->execute()) {
-        if ($facility) {
-            delete_facility_image_file($facility['image_url'], __DIR__ . '/../uploads');
+    try {
+        db_delete('facilities', 'id = ?', [$id]);
+        if ($facility && !empty($facility->image_url)) {
+            delete_facility_image_file($facility->image_url, __DIR__ . '/../uploads');
         }
-    } else {
-        $_SESSION['flash_error'] = 'Cannot delete this facility: it still has bookings or closures referencing it.';
+    } catch (PDOException $e) {
+        $_SESSION['flash_error'] = 'Cannot delete this facility: it still has active bookings, events, or closures referencing it.';
     }
-    $stmt->close();
 }
 
 header('Location: facilities.php');

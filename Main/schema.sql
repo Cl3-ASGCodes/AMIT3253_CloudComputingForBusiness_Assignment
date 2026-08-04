@@ -5,7 +5,7 @@ CREATE TABLE login (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  user_type ENUM('admin', 'student', 'guest') NOT NULL DEFAULT 'guest'
+  user_type ENUM('admin', 'staff', 'student', 'guest') NOT NULL DEFAULT 'guest'
 );
 INSERT INTO login (id, username, password_hash, user_type) VALUES
 (1, 'admin', '$2y$10$HI3gLmyD4OGmfNLAGUIL8.eBhhKu5nzL7wTDws.6mUNO9V44kyM5q', 'admin');
@@ -19,17 +19,14 @@ CREATE TABLE users (
   date_of_birth DATE NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   login_id INT NULL,
-  FOREIGN KEY (login_id) REFERENCES login(id)
+  FOREIGN KEY (login_id) REFERENCES login(id) ON DELETE CASCADE
 );
 
 -- Seed admin account: admin@example.com / admin123
--- Change this password immediately in any real deployment.
 INSERT INTO users (name, email, login_id) VALUES
 ('Admin', 'admin@example.com', 1);
 
--- A facility is a SPORT/CATEGORY (e.g. "Badminton"), not a specific physical court.
--- Adding a brand new sport (e.g. Pickleball, Paddleball) is just one row here plus
--- one or more rows in `courts` below - no code changes needed anywhere else.
+-- Facilities (Dewan Tunku Abdul Rahman, Function Hall, Multi-Purpose Hall, etc.)
 CREATE TABLE facilities (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -41,15 +38,13 @@ CREATE TABLE facilities (
   layout_url VARCHAR(500) NULL
 );
 
--- A court is a specific bookable instance of a facility (Court A, Lane 3, Table 1...).
--- Bookings/closures reference a court, never a facility directly - that's what lets
--- two courts of the same sport be booked independently for the same date/time.
+-- Courts/Halls within a facility
 CREATE TABLE courts (
   id INT AUTO_INCREMENT PRIMARY KEY,
   facility_id INT NOT NULL,
   name VARCHAR(50) NOT NULL,
   location VARCHAR(100) NULL,
-  FOREIGN KEY (facility_id) REFERENCES facilities(id)
+  FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE
 );
 
 CREATE TABLE facility_images (
@@ -58,8 +53,8 @@ CREATE TABLE facility_images (
   court_id INT NULL,
   image_url VARCHAR(500) NOT NULL,
   description VARCHAR(255) NULL,
-  FOREIGN KEY (facility_id) REFERENCES facilities(id),
-  FOREIGN KEY (court_id) REFERENCES courts(id)
+  FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE,
+  FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE SET NULL
 );
 
 INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
@@ -141,87 +136,58 @@ INSERT INTO facility_images (facility_id, image_url, description) VALUES
 (@ssfr_id, '/uploads/Event Halls/SSFR_PFA.jpg', 'Pre-function Area'),
 (@ssfr_id, '/uploads/Event Halls/SSFR_VIP.jpg', 'VIP Holding Room / Pre-function Room');
 
-INSERT INTO facilities (name, location, capacity, description, flexible, features) VALUES
-('Academic & training facilities', 'Assorted Areas', 400,
- 'Our academic spaces are designed for focus and engagement, suitable for everthing from small-group sessions to large examinations.',
- TRUE,
- 'Capacity Option: 20 - 400 Pax\nBuilt in Projector Screen and PA System\nIdeal for Academic Seminars, Classes and Formal Examinations');
-SET @atf_id = LAST_INSERT_ID();
-INSERT INTO courts (facility_id, name) VALUES (@atf_id, 'Room 1');
-INSERT INTO facility_images (facility_id, image_url) VALUES
-(@atf_id, '/uploads/Event Halls/ATF_PIC_1.jpg'),
-(@atf_id, '/uploads/Event Halls/ATF_PIC_2.jpg'),
-(@atf_id, '/uploads/Event Halls/ATF_PIC_3.jpg'),
-(@atf_id, '/uploads/Event Halls/ATF_PIC_4.jpg'),
-(@atf_id, '/uploads/Event Halls/ATF_PIC_5.jpg'),
-(@atf_id, '/uploads/Event Halls/ATF_PIC_6.jpg');
-
 CREATE TABLE time_slots (
   id INT AUTO_INCREMENT PRIMARY KEY,
   label VARCHAR(20) NOT NULL,
   sort_order INT NOT NULL
 );
 
-INSERT INTO time_slots (label, sort_order) VALUES
-('08:00 - 09:00', 1),
-('09:00 - 10:00', 2),
-('10:00 - 11:00', 3),
-('11:00 - 12:00', 4),
-('14:00 - 15:00', 5),
-('15:00 - 16:00', 6),
-('16:00 - 17:00', 7),
-('17:00 - 18:00', 8),
-('18:00 - 19:00', 9),
-('19:00 - 20:00', 10),
-('20:00 - 21:00', 11);
+INSERT INTO time_slots (id, label, sort_order) VALUES
+(1, '08:00 - 09:00', 1),
+(2, '09:00 - 10:00', 2),
+(3, '10:00 - 11:00', 3),
+(4, '11:00 - 12:00', 4),
+(5, '14:00 - 15:00', 5),
+(6, '15:00 - 16:00', 6),
+(7, '16:00 - 17:00', 7),
+(8, '17:00 - 18:00', 8),
+(9, '18:00 - 19:00', 9),
+(10, '19:00 - 20:00', 10),
+(11, '20:00 - 21:00', 11);
 
 CREATE TABLE bookings (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   court_id INT NOT NULL,
-  time_slot_id INT NOT NULL,
   booking_date DATE NOT NULL,
+  full_day BOOLEAN NOT NULL DEFAULT FALSE,
+  start_datetime DATETIME NOT NULL,
+  end_datetime DATETIME NOT NULL,
+  reason TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY unique_slot (court_id, booking_date, time_slot_id),
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (court_id) REFERENCES courts(id),
-  FOREIGN KEY (time_slot_id) REFERENCES time_slots(id)
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE CASCADE
 );
 
--- time_slot_id = NULL means the court is closed for the whole day
 CREATE TABLE closures (
   id INT AUTO_INCREMENT PRIMARY KEY,
   court_id INT NOT NULL,
   closure_date DATE NOT NULL,
   time_slot_id INT NULL,
   reason VARCHAR(150) NOT NULL,
-  FOREIGN KEY (court_id) REFERENCES courts(id),
+  FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE CASCADE,
   FOREIGN KEY (time_slot_id) REFERENCES time_slots(id)
 );
 
--- In-app notices shown to a user on their next visit, e.g. when an admin
--- closure cancels one of their existing bookings. No email/SMS involved.
 CREATE TABLE notifications (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   message VARCHAR(500) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   read_at TIMESTAMP NULL,
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE testimonials (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT NOT NULL,
-  facility_id INT NOT NULL,
-  comment TEXT NOT NULL,
-  rating TINYINT NOT NULL DEFAULT 5,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id),
-  FOREIGN KEY (facility_id) REFERENCES facilities(id)
-);
-
--- Public contact form submissions - no login required to send one
 CREATE TABLE contact_messages (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
@@ -231,12 +197,87 @@ CREATE TABLE contact_messages (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- PHP sessions are stored here instead of on local disk, so that any EC2
--- instance behind an ALB/ASG can read a session written by a different
--- instance. See auth.php's DbSessionHandler.
 CREATE TABLE sessions (
   id VARCHAR(128) PRIMARY KEY,
   data MEDIUMTEXT NOT NULL,
   last_activity INT NOT NULL,
   INDEX idx_last_activity (last_activity)
 );
+
+-- ============================================================================
+-- TICKETING & EVENT SYSTEM TABLES
+-- ============================================================================
+
+CREATE TABLE events (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(200) NOT NULL,
+  description TEXT NOT NULL,
+  facility_id INT NOT NULL,
+  court_id INT NULL,
+  start_datetime DATETIME NOT NULL,
+  end_datetime DATETIME NOT NULL,
+  image_url VARCHAR(500) NULL,
+  organizer_id INT NOT NULL,
+  status ENUM('draft', 'published', 'cancelled') NOT NULL DEFAULT 'published',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (facility_id) REFERENCES facilities(id) ON DELETE CASCADE,
+  FOREIGN KEY (court_id) REFERENCES courts(id) ON DELETE SET NULL,
+  FOREIGN KEY (organizer_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE ticket_types (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  event_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  total_quantity INT NOT NULL DEFAULT 100,
+  remaining_quantity INT NOT NULL DEFAULT 100,
+  description TEXT NULL,
+  FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_ref VARCHAR(30) NOT NULL UNIQUE,
+  user_id INT NULL,
+  buyer_name VARCHAR(100) NOT NULL,
+  buyer_email VARCHAR(150) NOT NULL,
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  payment_status ENUM('paid', 'pending', 'refunded') NOT NULL DEFAULT 'paid',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE tickets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  ticket_type_id INT NOT NULL,
+  ticket_code VARCHAR(64) NOT NULL UNIQUE,
+  attendee_name VARCHAR(100) NOT NULL,
+  attendee_email VARCHAR(150) NOT NULL,
+  is_checked_in BOOLEAN DEFAULT FALSE,
+  checked_in_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (ticket_type_id) REFERENCES ticket_types(id) ON DELETE CASCADE
+);
+
+-- Seed Sample Events & Ticket Types
+INSERT INTO events (title, description, facility_id, court_id, start_datetime, end_datetime, image_url, organizer_id, status) VALUES
+('TAR UMT Annual Symphony Orchestra Concert 2026',
+ 'Join us for a magical evening of classical and contemporary orchestral performances hosted by TAR UMT Symphony Orchestra at Dewan Tunku Abdul Rahman.',
+ 1, 1, '2026-09-15 19:00:00', '2026-09-15 22:00:00', '/uploads/Event Halls/DTAR_HALL_A.jpg', 1, 'published'),
+('TARCIAN Tech & AI Innovation Summit 2026',
+ 'A premier technology conference featuring keynote speakers, startup showcases, and AI workshops in the Red Bricks Theatre.',
+ 4, 6, '2026-10-05 09:00:00', '2026-10-05 17:00:00', '/uploads/Event Halls/RBTA_AUD.jpg', 1, 'published');
+
+SET @evt1_id = 1;
+INSERT INTO ticket_types (event_id, name, price, total_quantity, remaining_quantity, description) VALUES
+(@evt1_id, 'VIP Orchestra Seat', 50.00, 100, 95, 'Front-row prime seating with complimentary refreshment pass.'),
+(@evt1_id, 'General Admission', 25.00, 500, 480, 'Standard hall seating for public attendees.'),
+(@evt1_id, 'TARCIAN Student Pass', 10.00, 300, 270, 'Discounted ticket tier for current TAR UMT students.');
+
+SET @evt2_id = 2;
+INSERT INTO ticket_types (event_id, name, price, total_quantity, remaining_quantity, description) VALUES
+(@evt2_id, 'Delegate Pass', 35.00, 150, 140, 'Full-day access to all keynote sessions and networking lunch.'),
+(@evt2_id, 'Student Pass', 15.00, 100, 90, 'Discounted access for students with valid ID.');

@@ -8,9 +8,9 @@
 <div class="footer-links">
 <h4>Explore</h4>
 <a href="index.php">Home</a>
+<a href="events.php">Events & Tickets</a>
 <a href="facilities.php">Venues</a>
 <a href="schedule.php">Schedule</a>
-<a href="testimonials.php">Testimonials</a>
 </div>
 <div class="footer-links">
 <h4>Company</h4>

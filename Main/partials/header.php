@@ -144,6 +144,13 @@ function nav_active($page, $current) {
     }
 }
 </style>
+<style>
+    @media (max-width: 768px) {
+        .navbar {
+            padding: 0.75rem 1rem;
+        }
+    }
+</style>
 </head>
 <body>
 <nav class="navbar">
@@ -153,27 +160,51 @@ function nav_active($page, $current) {
 </a>
 
 <div class="nav-controls">
-    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
+    <button id="theme-toggle" class="theme-toggle pc-theme-toggle" type="button" aria-label="Toggle dark mode">&#9728;</button>
     <button type="button" class="mobile-nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
         <span></span>
         <span></span>
         <span></span>
     </button>
 </div>
+<script>
+    // Mobile navigation toggle
+    const toggleBtn = document.querySelector('.mobile-nav-toggle');
+    const navLinks = document.querySelector('.nav-links');
+    if (toggleBtn && navLinks) {
+        toggleBtn.addEventListener('click', () => {
+            const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+            toggleBtn.setAttribute('aria-expanded', String(!expanded));
+            navLinks.classList.toggle('mobile-open');
+            toggleBtn.classList.toggle('active');
+        });
+        // close menu when a link is clicked (optional for better UX)
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (navLinks.classList.contains('mobile-open')) {
+                    navLinks.classList.remove('mobile-open');
+                    toggleBtn.setAttribute('aria-expanded', 'false');
+                    toggleBtn.classList.remove('active');
+                }
+            });
+        });
+    }
+</script>
 
 <div class="nav-links">
 <a href="index.php" class="<?= trim(nav_active('index.php', $currentPage)) ?>">Home</a>
+<a href="events.php" class="<?= trim(nav_active('events.php', $currentPage)) ?>">Events & Tickets</a>
 <a href="facilities.php" class="<?= trim(nav_active('facilities.php', $currentPage)) ?>">Venues</a>
-<a href="schedule.php" class="<?= trim(nav_active('schedule.php', $currentPage)) ?>">Schedule</a>
-<a href="testimonials.php" class="<?= trim(nav_active('testimonials.php', $currentPage)) ?>">Testimonials</a>
 <a href="about.php" class="<?= trim(nav_active('about.php', $currentPage)) ?>">About</a>
 <a href="contact.php" class="<?= trim(nav_active('contact.php', $currentPage)) ?>">Contact</a>
 <?php if ($loggedIn): ?>
+<a href="my_tickets.php" class="<?= trim(nav_active('my_tickets.php', $currentPage)) ?>">My Tickets</a>
 <div class="user-menu">
 <button type="button" class="nav-user user-menu-trigger" aria-haspopup="true" aria-expanded="false">
 <span class="user-avatar"><?= htmlspecialchars(mb_strtoupper(mb_substr(current_user_name(), 0, 1))) ?></span> Hi, <?= htmlspecialchars(current_user_name()) ?>
 </button>
 <div class="user-menu-dropdown">
+<a href="my_tickets.php">My Tickets</a>
 <a href="account.php">My Account</a>
 <a href="logout.php">Logout</a>
 </div>
@@ -183,5 +214,17 @@ function nav_active($page, $current) {
 <a href="register.php">Register</a>
 <?php endif; ?>
 </div>
+<script>
+    // Mobile navigation toggle
+    const toggleBtn = document.querySelector('.mobile-nav-toggle');
+    const navLinks = document.querySelector('.nav-links');
+    if (toggleBtn && navLinks) {
+        toggleBtn.addEventListener('click', () => {
+            const expanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+            toggleBtn.setAttribute('aria-expanded', String(!expanded));
+            navLinks.classList.toggle('mobile-open');
+        });
+    }
+</script>
 </nav>
 <main class="container">

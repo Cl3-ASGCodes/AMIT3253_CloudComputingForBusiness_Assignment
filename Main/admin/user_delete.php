@@ -1,6 +1,7 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -10,29 +11,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($id === $myId) {
         $_SESSION['flash_error'] = 'You cannot delete your own account.';
     } else {
-        $conn->begin_transaction();
+        $user = db_fetch_one('SELECT login_id FROM users WHERE id = ?', [$id]);
 
-        $stmt = $conn->prepare('DELETE FROM bookings WHERE user_id = ?');
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $stmt->close();
-
-        $stmt = $conn->prepare('DELETE FROM notifications WHERE user_id = ?');
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $stmt->close();
-
-        $stmt = $conn->prepare('DELETE FROM testimonials WHERE user_id = ?');
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $stmt->close();
-
-        $stmt = $conn->prepare('DELETE FROM users WHERE id = ?');
-        $stmt->bind_param('i', $id);
-        $stmt->execute();
-        $stmt->close();
-
-        $conn->commit();
+        db_transaction(function() use ($id, $user) {
+            db_delete('bookings', 'user_id = ?', [$id]);
+            db_delete('notifications', 'user_id = ?', [$id]);
+            db_delete('users', 'id = ?', [$id]);
+            if ($user && $user->login_id) {
+                db_delete('login', 'id = ?', [$user->login_id]);
+            }
+        });
     }
 }
 

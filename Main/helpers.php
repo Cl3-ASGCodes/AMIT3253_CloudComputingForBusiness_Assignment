@@ -455,3 +455,47 @@ function db_transaction(callable $callback): mixed {
         throw $e;
     }
 }
+
+// ============================================================================
+// Ticketing & Event System Helper Utilities
+// ============================================================================
+
+/**
+ * Generates a unique readable Order Reference (e.g. ORD-2026-A8K9F)
+ */
+function generate_order_ref(): string {
+    return 'ORD-' . date('Y') . '-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
+}
+
+/**
+ * Generates a unique Ticket Code for QR scanning (e.g. TCK-8F29-91A2-38B1)
+ */
+function generate_ticket_code(): string {
+    $bytes = bin2hex(random_bytes(6));
+    return 'TCK-' . strtoupper(substr($bytes, 0, 4) . '-' . substr($bytes, 4, 4) . '-' . substr($bytes, 8, 4));
+}
+
+/**
+ * Formats currency in Malaysian Ringgit (MYR / RM)
+ */
+function format_myr(float|int|string $amount): string {
+    $num = (float)$amount;
+    return $num > 0 ? 'RM ' . number_format($num, 2) : 'Free';
+}
+
+/**
+ * Generates HTML badge for event status
+ */
+function event_status_badge(string $status): string {
+    switch ($status) {
+        case 'published':
+            return '<span class="badge badge-good">&#10003; Active / Published</span>';
+        case 'draft':
+            return '<span class="badge badge-neutral">&#9679; Draft</span>';
+        case 'cancelled':
+            return '<span class="badge badge-critical">&#10005; Cancelled</span>';
+        default:
+            return '<span class="badge badge-neutral">' . htmlspecialchars($status) . '</span>';
+    }
+}
+

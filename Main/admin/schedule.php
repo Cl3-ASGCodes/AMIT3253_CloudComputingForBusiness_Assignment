@@ -1,70 +1,58 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
-$facilities = $conn->query('SELECT * FROM facilities ORDER BY name')->fetch_all(MYSQLI_ASSOC);
+$facilities = db_fetch_all('SELECT * FROM facilities ORDER BY name');
 
-$selectedFacilityId = (int)($_GET['facility_id'] ?? ($facilities[0]['id'] ?? 0));
+$selectedFacilityId = (int)($_GET['facility_id'] ?? ($facilities[0]->id ?? 0));
 $selectedDate = $_GET['date'] ?? date('Y-m-d');
 
-$stmt = $conn->prepare('SELECT id, name FROM courts WHERE facility_id = ? ORDER BY name');
-$stmt->bind_param('i', $selectedFacilityId);
-$stmt->execute();
-$courts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt->close();
+$courts = db_fetch_all('SELECT id, name FROM courts WHERE facility_id = ? ORDER BY name', [$selectedFacilityId]);
+$timeSlots = db_fetch_all('SELECT * FROM time_slots ORDER BY sort_order');
 
-$timeSlots = $conn->query('SELECT * FROM time_slots ORDER BY sort_order')->fetch_all(MYSQLI_ASSOC);
-
-$courtIds = array_column($courts, 'id');
+$courtIds = array_map(fn($c) => $c->id, $courts);
 $bookedSlots = []; // [court_id][time_slot_id] = ['name' => ..., 'email' => ...]
 $closedSlots = []; // [court_id][time_slot_id] = reason
 $wholeDayClosed = []; // [court_id] = reason
 
-if ($courtIds !== []) {
+if (!empty($courtIds)) {
     $placeholders = implode(',', array_fill(0, count($courtIds), '?'));
-    $types = str_repeat('i', count($courtIds)) . 's';
     $params = array_merge($courtIds, [$selectedDate]);
 
-    $stmt = $conn->prepare("
+    $bookings = db_fetch_all("
         SELECT b.court_id, b.time_slot_id, u.name, u.email
         FROM bookings b
         JOIN users u ON u.id = b.user_id
         WHERE b.court_id IN ($placeholders) AND b.booking_date = ?
-    ");
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $bookedSlots[$row['court_id']][$row['time_slot_id']] = ['name' => $row['name'], 'email' => $row['email']];
-    }
-    $stmt->close();
+    ", $params);
 
-    $stmt = $conn->prepare("SELECT court_id, time_slot_id, reason FROM closures WHERE court_id IN ($placeholders) AND closure_date = ?");
-    $stmt->bind_param($types, ...$params);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        if ($row['time_slot_id'] === null) {
-            $wholeDayClosed[$row['court_id']] = $row['reason'];
+    foreach ($bookings as $row) {
+        $bookedSlots[$row->court_id][$row->time_slot_id] = ['name' => $row->name, 'email' => $row->email];
+    }
+
+    $closures = db_fetch_all("SELECT court_id, time_slot_id, reason FROM closures WHERE court_id IN ($placeholders) AND closure_date = ?", $params);
+    foreach ($closures as $row) {
+        if ($row->time_slot_id === null) {
+            $wholeDayClosed[$row->court_id] = $row->reason;
         } else {
-            $closedSlots[$row['court_id']][$row['time_slot_id']] = $row['reason'];
+            $closedSlots[$row->court_id][$row->time_slot_id] = $row->reason;
         }
     }
-    $stmt->close();
 }
 
-$pageTitle = 'Facility Schedule';
+$pageTitle = 'Venue Hourly Schedule';
 require 'partials/header.php';
 ?>
-<h1>Facility Schedule</h1>
+<h1>Venue Hourly Schedule</h1>
 <p>See every court's bookings and closures at a glance, including who booked each slot.</p>
 
 <form method="get" class="filter-bar">
 <label>Facility
 <select name="facility_id" onchange="this.form.submit()">
 <?php foreach ($facilities as $f): ?>
-<option value="<?= (int)$f['id'] ?>" <?= $f['id'] == $selectedFacilityId ? 'selected' : '' ?>><?= htmlspecialchars($f['name']) ?></option>
+<option value="<?= (int)$f->id ?>" <?= $f->id == $selectedFacilityId ? 'selected' : '' ?>><?= htmlspecialchars($f->name) ?></option>
 <?php endforeach; ?>
 </select>
 </label>
@@ -83,16 +71,16 @@ require 'partials/header.php';
 <tr>
 <th>Time Slot</th>
 <?php foreach ($courts as $court): ?>
-<th class="schedule-court-th"><?= htmlspecialchars($court['name']) ?></th>
+<th class="schedule-court-th"><?= htmlspecialchars($court->name) ?></th>
 <?php endforeach; ?>
 </tr>
 <?php foreach ($timeSlots as $t): ?>
 <tr>
-<td><?= htmlspecialchars($t['label']) ?></td>
+<td><?= htmlspecialchars($t->label) ?></td>
 <?php foreach ($courts as $court): ?>
 <?php
-$courtId = $court['id'];
-$slotId = $t['id'];
+$courtId = $court->id;
+$slotId = $t->id;
 $booking = $bookedSlots[$courtId][$slotId] ?? null;
 ?>
 <td class="schedule-court-td">

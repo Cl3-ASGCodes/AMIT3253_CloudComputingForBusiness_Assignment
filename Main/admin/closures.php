@@ -1,6 +1,7 @@
 <?php
 require '../config.php';
 require '../auth.php';
+require '../helpers.php';
 require_admin();
 
 $error = '';
@@ -17,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Date and reason are required.';
     } else {
         if ($time_slot_id === null) {
-            $stmt = $conn->prepare('
+            $conflicts = db_fetch_all('
                 SELECT b.id, b.user_id, u.name AS user_name, u.email AS user_email, t.label AS time_slot,
                        f.name AS facility_name, co.name AS court_name
                 FROM bookings b
@@ -27,10 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 JOIN facilities f ON f.id = co.facility_id
                 WHERE b.court_id = ? AND b.booking_date = ?
                 ORDER BY t.sort_order
-            ');
-            $stmt->bind_param('is', $court_id, $closure_date);
+            ', [$court_id, $closure_date]);
         } else {
-            $stmt = $conn->prepare('
+            $conflicts = db_fetch_all('
                 SELECT b.id, b.user_id, u.name AS user_name, u.email AS user_email, t.label AS time_slot,
                        f.name AS facility_name, co.name AS court_name
                 FROM bookings b
@@ -39,73 +39,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 JOIN courts co ON co.id = b.court_id
                 JOIN facilities f ON f.id = co.facility_id
                 WHERE b.court_id = ? AND b.booking_date = ? AND b.time_slot_id = ?
-            ');
-            $stmt->bind_param('isi', $court_id, $closure_date, $time_slot_id);
+            ', [$court_id, $closure_date, $time_slot_id]);
         }
-        $stmt->execute();
-        $conflicts = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        $stmt->close();
 
         if (!empty($conflicts) && !$confirmed) {
             // Fall through to render the confirmation screen below instead of saving.
         } else {
-            if (!empty($conflicts)) {
-                $conflictIds = array_column($conflicts, 'id');
-                $placeholders = implode(',', array_fill(0, count($conflictIds), '?'));
-                $types = str_repeat('i', count($conflictIds));
-                $del = $conn->prepare("DELETE FROM bookings WHERE id IN ($placeholders)");
-                $del->bind_param($types, ...$conflictIds);
-                $del->execute();
-                $del->close();
+            db_transaction(function() use ($conflicts, $court_id, $closure_date, $time_slot_id, $reason) {
+                if (!empty($conflicts)) {
+                    $conflictIds = array_map(fn($b) => $b->id, $conflicts);
+                    $placeholders = implode(',', array_fill(0, count($conflictIds), '?'));
+                    db_query("DELETE FROM bookings WHERE id IN ($placeholders)", $conflictIds);
 
-                $notify = $conn->prepare('INSERT INTO notifications (user_id, message) VALUES (?, ?)');
-                foreach ($conflicts as $b) {
-                    $message = sprintf(
-                        'Your booking for %s — %s on %s (%s) was cancelled due to a closure: %s',
-                        $b['facility_name'],
-                        $b['court_name'],
-                        $closure_date,
-                        $b['time_slot'],
-                        $reason
-                    );
-                    $notify->bind_param('is', $b['user_id'], $message);
-                    $notify->execute();
+                    foreach ($conflicts as $b) {
+                        $message = sprintf(
+                            'Your booking for %s — %s on %s (%s) was cancelled due to a closure: %s',
+                            $b->facility_name,
+                            $b->court_name,
+                            $closure_date,
+                            $b->time_slot,
+                            $reason
+                        );
+                        db_insert('notifications', [
+                            'user_id' => $b->user_id,
+                            'message' => $message
+                        ]);
+                    }
                 }
-                $notify->close();
-            }
 
-            $stmt = $conn->prepare('INSERT INTO closures (court_id, closure_date, time_slot_id, reason) VALUES (?, ?, ?, ?)');
-            $stmt->bind_param('isis', $court_id, $closure_date, $time_slot_id, $reason);
-            $stmt->execute();
-            $stmt->close();
+                db_insert('closures', [
+                    'court_id'     => $court_id,
+                    'closure_date' => $closure_date,
+                    'time_slot_id' => $time_slot_id,
+                    'reason'       => $reason
+                ]);
+            });
+
             header('Location: closures.php');
             exit;
         }
     }
 }
 
-$courts = $conn->query('
+$courts = db_fetch_all('
     SELECT c.id, c.name AS court_name, f.name AS facility_name
     FROM courts c
     JOIN facilities f ON f.id = c.facility_id
     ORDER BY f.name, c.name
-')->fetch_all(MYSQLI_ASSOC);
-$timeSlots = $conn->query('SELECT * FROM time_slots ORDER BY sort_order');
-$closures = $conn->query('
+');
+$timeSlots = db_fetch_all('SELECT * FROM time_slots ORDER BY sort_order');
+$closures = db_fetch_all('
     SELECT cl.id, f.name AS facility_name, co.name AS court_name, cl.closure_date, t.label AS time_slot, cl.reason
     FROM closures cl
     JOIN courts co ON co.id = cl.court_id
     JOIN facilities f ON f.id = co.facility_id
     LEFT JOIN time_slots t ON t.id = cl.time_slot_id
     ORDER BY cl.closure_date DESC
-')->fetch_all(MYSQLI_ASSOC);
+');
 
 $pendingClosure = null;
 if (!empty($conflicts)) {
     $courtLabel = '';
     foreach ($courts as $c) {
-        if ($c['id'] == $court_id) {
-            $courtLabel = $c['facility_name'] . ' — ' . $c['court_name'];
+        if ($c->id == $court_id) {
+            $courtLabel = $c->facility_name . ' — ' . $c->court_name;
             break;
         }
     }
@@ -133,7 +130,7 @@ require 'partials/header.php';
 <p class="alert alert-error">
 Closing <strong><?= htmlspecialchars($pendingClosure['court_label']) ?></strong> on
 <strong><?= htmlspecialchars($pendingClosure['closure_date']) ?></strong>
-<?= $pendingClosure['time_slot_id'] ? 'for the ' . htmlspecialchars($conflicts[0]['time_slot']) . ' slot' : '(whole day)' ?>
+<?= $pendingClosure['time_slot_id'] ? 'for the ' . htmlspecialchars($conflicts[0]->time_slot) . ' slot' : '(whole day)' ?>
 will cancel <?= count($conflicts) ?> existing booking<?= count($conflicts) === 1 ? '' : 's' ?> below.
 This cannot be undone.
 </p>
@@ -141,9 +138,9 @@ This cannot be undone.
 <tr><th>Time Slot</th><th>Booked By</th><th>Email</th></tr>
 <?php foreach ($conflicts as $b): ?>
 <tr>
-<td><?= htmlspecialchars($b['time_slot']) ?></td>
-<td><?= htmlspecialchars($b['user_name']) ?></td>
-<td><?= htmlspecialchars($b['user_email']) ?></td>
+<td><?= htmlspecialchars($b->time_slot) ?></td>
+<td><?= htmlspecialchars($b->user_name) ?></td>
+<td><?= htmlspecialchars($b->user_email) ?></td>
 </tr>
 <?php endforeach; ?>
 </table>
@@ -166,7 +163,7 @@ This cannot be undone.
 <label>Court
 <select name="court_id" required>
 <?php foreach ($courts as $c): ?>
-<option value="<?= (int)$c['id'] ?>"><?= htmlspecialchars($c['facility_name']) ?> &mdash; <?= htmlspecialchars($c['court_name']) ?></option>
+<option value="<?= (int)$c->id ?>"><?= htmlspecialchars($c->facility_name) ?> &mdash; <?= htmlspecialchars($c->court_name) ?></option>
 <?php endforeach; ?>
 </select>
 </label>
@@ -174,9 +171,9 @@ This cannot be undone.
 <label>Time Slot (leave blank to close the whole day)
 <select name="time_slot_id">
 <option value="">-- Whole Day --</option>
-<?php while ($t = $timeSlots->fetch_assoc()): ?>
-<option value="<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['label']) ?></option>
-<?php endwhile; ?>
+<?php foreach ($timeSlots as $t): ?>
+<option value="<?= (int)$t->id ?>"><?= htmlspecialchars($t->label) ?></option>
+<?php endforeach; ?>
 </select>
 </label>
 <label>Reason <input type="text" name="reason" placeholder="e.g. Maintenance" required></label>
@@ -196,14 +193,14 @@ This cannot be undone.
 <tr><th>Facility</th><th>Court</th><th>Date</th><th>Time Slot</th><th>Reason</th><th>Actions</th></tr>
 <?php foreach ($closures as $c): ?>
 <tr>
-<td><?= htmlspecialchars($c['facility_name']) ?></td>
-<td><?= htmlspecialchars($c['court_name']) ?></td>
-<td><?= htmlspecialchars($c['closure_date']) ?></td>
-<td><?= $c['time_slot'] ? htmlspecialchars($c['time_slot']) : 'Whole Day' ?></td>
-<td><?= htmlspecialchars($c['reason']) ?></td>
+<td><?= htmlspecialchars($c->facility_name) ?></td>
+<td><?= htmlspecialchars($c->court_name) ?></td>
+<td><?= htmlspecialchars($c->closure_date) ?></td>
+<td><?= $c->time_slot ? htmlspecialchars($c->time_slot) : 'Whole Day' ?></td>
+<td><?= htmlspecialchars($c->reason) ?></td>
 <td>
 <form action="closure_delete.php" method="post" style="display:inline" onsubmit="return confirm('Remove this closure?');">
-<input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+<input type="hidden" name="id" value="<?= (int)$c->id ?>">
 <button type="submit" class="btn-small btn-secondary">Reopen</button>
 </form>
 </td>
